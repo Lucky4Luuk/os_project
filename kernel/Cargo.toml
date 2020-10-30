@@ -1,0 +1,77 @@
+[package]
+name = "kernel"
+version = "0.1.0"
+authors = ["Luuk van Oijen <lazyluuk.channel@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4.11"
+
+rlibc = "1.0.0"
+bootloader = { version = "0.9.11", features = ["map_physical_memory"] }
+volatile = "0.2.6"
+spin = "0.5.2"
+
+x86_64 = "0.12.2"
+acpi = "1.0.0"
+aml = "0.8.0"
+
+cpuio = "0.3.0"
+
+#IO
+uart_16550 = "0.2.10" #Serial
+pic8259_simple = "0.2.0" #Primary interrupt controller
+# x2apic = "0.1.1" #x2apic support, if needed in the future
+# x2apic = { git = "https://github.com/Lucky4Luuk/x2apic-rs.git" }
+pc-keyboard = "0.5.0"
+
+#Heap allocators
+linked_list_allocator = "0.8.6"
+# slab_allocator = { git = "https://github.com/Lucky4Luuk/slab_allocator.git" } #<Error>
+
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]
+
+[dependencies.crossbeam-queue]
+version = "0.2.1"
+default-features = false
+features = ["alloc"]
+
+[dependencies.conquer-once]
+version = "0.2.0"
+default-features = false
+
+[dependencies.futures-util]
+version = "0.3.4"
+default-features = false
+features = ["alloc"]
+
+# Profiles
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+# Qemu/running stuff
+[package.metadata.bootimage]
+test-args = [
+    "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
+    "-serial", "stdio",
+    "-display", "none",
+]
+test-success-exit-code = 33         # (0x10 << 1) | 1
+test-timeout = 300                  # in seconds
+
+run-args = [
+    "-m", "256M",
+    # "-M", "q35",
+    # "+apic",
+    # "-machine", "kernel-irqchip=on",
+    "-cpu", "qemu64",
+
+    "-smp", "4",
+]
