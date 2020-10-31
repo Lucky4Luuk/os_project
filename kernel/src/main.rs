@@ -7,12 +7,14 @@
 #![reexport_test_harness_main = "test_main"]
 
 #[macro_use] extern crate log;
-extern crate alloc;
+#[macro_use] extern crate alloc;
 
 use core::panic::PanicInfo;
 use alloc::{boxed::Box, vec, vec::Vec, rc::Rc};
 
 use bootloader::{BootInfo, entry_point};
+
+use raw_cpuid::CpuId;
 
 use kernel::{
     print,
@@ -50,13 +52,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use x86_64::{structures::paging::MapperAllSizes, VirtAddr};
 
     kernel_logger::init().expect("Failed to load the kernel logger!");
-    debug!("Hello, world!");
+    println!("Hello, world!");
 
     let regions = boot_info.memory_map.iter();
     let addr_ranges = regions.map(|r| r.range.start_addr()..r.range.end_addr());
     let frame_addresses = addr_ranges.flat_map(|r| r.step_by(4096));
     let available_memory = frame_addresses.count() * 4;
-    debug!("Memory available: {} KiB", available_memory);
+    println!("Memory available: {} KiB", available_memory);
 
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     kernel::memory::update_physical_memory_offset(phys_mem_offset.as_u64());
@@ -67,7 +69,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         *frame_allocator = unsafe {
             Some(BootInfoFrameAllocator::init(&boot_info.memory_map))
         };
-        debug!("Mapper and frame allocator created!");
+        println!("Mapper and frame allocator created!");
     }
 
     let mut mapper = kernel::memory::MAPPER.lock();
@@ -76,14 +78,39 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     kernel::init();
     kernel::allocator::init_heap(mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).expect("Heap initialization failed!");
 
+    let cpuid = CpuId::new();
+    match cpuid.get_vendor_info() {
+        Some(vf) => debug!("CPU vendor: {}", vf.as_string()),
+        None => warn!("Failed to find the CPU vendor!"),
+    }
+
+    match cpuid.get_feature_info() {
+        Some(features) => {
+            debug!("CPU has APIC: {}", features.has_apic());
+            debug!("CPU has TSC: {}", features.has_tsc());
+        },
+        None => warn!("Failed to find the CPU's feature info!"),
+    }
+
+    match cpuid.get_tsc_info() {
+        Some(tsc_info) => {
+            match tsc_info.tsc_frequency() {
+                Some(freq) => debug!("TSC freq: {}", freq),
+                None => warn!("TSC freg is unknown!"),
+            }
+        },
+        None => warn!("Failed to find the CPU's TSC info!"),
+    }
+
     let acpi_controller = kernel::acpi_controller::AcpiController::new(phys_mem_offset.as_u64());
 
     match acpi_controller {
         Ok(controller) => {
             debug!("Found ACPI data!");
-            controller.debug_print();
+            // controller.debug_print();
 
-            controller.get_cpu();
+            // controller.get_cpu();
+            trace!("APIC_ADDR: {:#08X}", controller.get_apic_addr());
             kernel::apic::update_ioapic_addr(*controller.get_io_apic_addr().iter().next().expect("Failed to get the first IOAPIC addr!") as u64);
         },
         Err(err) => {
@@ -95,8 +122,11 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     kernel::interrupts::initialize_apic(0);
 
     debug!("[RTC] Sleeping for 2 seconds");
+    debug!("RDTSC value: {}", kernel::hardware::rdtsc::read_rdtsc());
     kernel::hardware::rtc::sleep(2.0); //Sleep for 2 seconds
+    let res = kernel::hardware::rdtsc::read_rdtsc();
     debug!("[RTC] Sleep ended!");
+    debug!("RDTSC value: {}", res);
 
     // debug!("[APIC] Sleeping for 2 seconds");
     // debug!("[APIC] Sleep ended!");

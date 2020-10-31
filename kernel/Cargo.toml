@@ -19,12 +19,11 @@ acpi = "1.0.0"
 aml = "0.8.0"
 
 cpuio = "0.3.0"
+raw-cpuid = "8.1.2"
 
 #IO
 uart_16550 = "0.2.10" #Serial
 pic8259_simple = "0.2.0" #Primary interrupt controller
-# x2apic = "0.1.1" #x2apic support, if needed in the future
-# x2apic = { git = "https://github.com/Lucky4Luuk/x2apic-rs.git" }
 pc-keyboard = "0.5.0"
 
 #Heap allocators
@@ -71,7 +70,7 @@ run-args = [
     # "-M", "q35",
     # "+apic",
     # "-machine", "kernel-irqchip=on",
-    "-cpu", "qemu64",
+    # "-cpu", "qemu64",
 
     "-smp", "4",
 ]

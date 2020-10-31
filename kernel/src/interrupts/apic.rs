@@ -11,8 +11,18 @@ use crate::memory::{memory_read_32, memory_write_32};
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 const APIC_ADDRESS: u64 = 0xFEE00000; //TODO: Get this from ACPI table although it shouldn't change
 
+const LAPIC_LVT_TIMER: u64 = 0x320;
+const LAPIC_LVT_THERMAL_SENSOR: u64 = 0x330;
+const LAPIC_LVT_PERFORMANCE_MONITORING: u64 = 0x340;
+const LAPIC_LVT_LINT0: u64 = 0x350;
+const LAPIC_LVT_LINT1: u64 = 0x360;
+const LAPIC_LVT_ERROR: u64 = 0x370;
+const LAPIC_TIMER_INITIAL_COUNT: u64 = 0x380;
+const LAPIC_TIMER_CURRENT_COUNT: u64 = 0x390;
+const LAPIC_TIMER_DIVIDE_CONFIG: u64 = 0x3E0;
+
 pub fn get_apic_address(apic_id: u8) -> u64 {
-    APIC_ADDRESS + 0x10 * (apic_id as u64)
+    APIC_ADDRESS + 0x10 * (apic_id as u64) //I think actually every core has it mapped to the same address, so maybe its irrelevant what the id is here
 }
 
 pub unsafe fn disable_pic() {
@@ -49,26 +59,39 @@ pub unsafe fn apic_send_eoi(apic_id: u8) {
     memory_write_32(apic_addr + 0xB0, 0);
 }
 
+pub unsafe fn apic_set_timer_mask(apic_addr: u64, mask: bool) {
+    let mut entry: u32 = memory_read_32(apic_addr + LAPIC_LVT_TIMER);
+    if mask {
+        entry |= (1 as u32) << 16;
+    } else {
+        entry &= !((1 as u32) << 16);
+    }
+    memory_write_32(apic_addr + LAPIC_LVT_TIMER, entry);
+}
+
 pub unsafe fn apic_set_timer(apic_id: u8) {
     let apic_addr = get_apic_address(apic_id);
 
-    memory_write_32(apic_addr + 0x3E0, 0x3); //0x3 = 011 = 16, divider
+    apic_set_timer_mask(apic_addr, true); //Disable the timer
 
-    memory_write_32(apic_addr + 0x320, 0x20020); //Enable timer, set periodic mode, set vector to 0x20 = 32
-    memory_write_32(apic_addr + 0x380, 0x0); //Reset timer to -1
+    memory_write_32(apic_addr + LAPIC_TIMER_DIVIDE_CONFIG, 0x3); //0x3 = 011 = 16, divider
+    memory_write_32(apic_addr + LAPIC_TIMER_INITIAL_COUNT, 0xFFFF_FFFF); //Reset initial count to -1
+
+    apic_set_timer_mask(apic_addr, false); //Enable timer
     crate::hardware::rtc::sleep(0.01); //Sleep for 10ms
-    memory_write_32(apic_addr + 0x320, 0x10020); //Stop the timer
+    apic_set_timer_mask(apic_addr, true); //Disable timer
 
-    let ticks = memory_read_32(apic_addr + 0x390);
+    let ticks = memory_read_32(apic_addr + LAPIC_TIMER_CURRENT_COUNT);
 
     trace!("apic timer ticks in 10ms");
     trace!("{}", ticks);
-
-    //Dunno what to do with this, `ticks` is always 0
-    // memory_write_32(apic_addr + 0x320, 32 | 0x20000);
-    // memory_write_32(apic_addr + 0x3E0, 0x3);
-    // memory_write_32(apic_addr + 0x380, ticks);
 }
+
+// pub unsafe fn apic_set_timer(apic_id: u8) {
+//     let apic_addr = get_apic_address(apic_id);
+//
+//     memory_write_32(apic_addr + LAPIC_TIMER_DIVIDE_CONFIG, 0x3);
+// }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // IOAPIC

@@ -34,6 +34,14 @@ pub fn _print(args: fmt::Arguments) {
     });
 }
 
+pub fn print_colored(string: &str, colour_code: ColourCode) {
+    use x86_64::instructions::interrupts;
+
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_string_coloured(string, colour_code);
+    });
+}
+
 // use crate::{serial_print, serial_println};
 
 #[test_case]
@@ -132,7 +140,27 @@ impl Writer {
                 let colour_code = self.colour_code;
                 self.buffer.chars[row][col].write(ScreenChar {
                     ascii_character: byte,
-                    colour_code,
+                    colour_code: colour_code,
+                });
+                self.column_position += 1;
+            }
+        }
+    }
+
+    pub fn write_byte_colored(&mut self, byte: u8, colour_code: ColourCode) {
+        match byte {
+            b'\n' => self.new_line(),
+            byte => {
+                if self.column_position >= BUFFER_WIDTH {
+                    self.new_line();
+                }
+
+                let row = BUFFER_HEIGHT - 1;
+                let col = self.column_position;
+
+                self.buffer.chars[row][col].write(ScreenChar {
+                    ascii_character: byte,
+                    colour_code: colour_code,
                 });
                 self.column_position += 1;
             }
@@ -165,6 +193,17 @@ impl Writer {
             match byte {
                 // printable ASCII byte or newline
                 0x20..=0x7e | b'\n' => self.write_byte(byte),
+                // not part of printable ASCII range
+                _ => self.write_byte(0xfe),
+            }
+        }
+    }
+
+    pub fn write_string_coloured(&mut self, s: &str, colour_code: ColourCode) {
+        for byte in s.bytes() {
+            match byte {
+                // printable ASCII byte or newline
+                0x20..=0x7e | b'\n' => self.write_byte_colored(byte, colour_code),
                 // not part of printable ASCII range
                 _ => self.write_byte(0xfe),
             }

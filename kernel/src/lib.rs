@@ -14,6 +14,7 @@
 #![feature(option_expect_none)]
 #![feature(global_asm)]
 #![feature(llvm_asm)]
+#![feature(asm)]
 
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]

@@ -29,12 +29,12 @@ pub fn initialize_apic(id: u8) {
         apic::enable_apic(id);
 
         // Default IRQs
-        // apic::ioapic_set_irq(0, id, InterruptIndex::Timer.as_u8());
+        apic::ioapic_set_irq(0, id as u32, InterruptIndex::Timer.as_u8());
         apic::ioapic_set_irq(1, id as u32, InterruptIndex::Keyboard.as_u8());
         apic::ioapic_set_irq(7, id as u32, InterruptIndex::Spurious.as_u8());
         apic::ioapic_set_irq(8, id as u32, InterruptIndex::RTC.as_u8());
 
-        apic::apic_set_timer(id);
+        //apic::apic_set_timer(id);
     }
 }
 
@@ -166,15 +166,15 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptSt
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
     use x86_64::instructions::port::Port;
 
+    debug!("Keyboard interrupt!");
+
     unsafe { apic::apic_send_eoi(0); }
 
     /*
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
-    crate::task::keyboard::add_scancode(scancode);
+    //crate::task::keyboard::add_scancode(scancode); //From old code, absolute garbage
     */
-
-    debug!("Keyboard interrupt!");
 
     // unsafe {
     //     PICS.lock()
