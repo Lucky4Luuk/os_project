@@ -70,7 +70,7 @@ pub enum ModeEnum {
 }
 
 pub struct Writer {
-    mode: ModeEnum,
+    pub mode: ModeEnum,
     cursor_pos: (usize, usize),
 }
 
