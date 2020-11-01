@@ -25,6 +25,7 @@ raw-cpuid = "8.1.2"
 uart_16550 = "0.2.10" #Serial
 pic8259_simple = "0.2.0" #Primary interrupt controller
 pc-keyboard = "0.5.0"
+vga = { git = "https://github.com/Lucky4Luuk/vga.git" }
 
 #Heap allocators
 linked_list_allocator = "0.8.6"

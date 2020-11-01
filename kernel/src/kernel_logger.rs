@@ -12,17 +12,16 @@ impl log::Log for Logger {
     }
 
     fn log(&self, record: &Record) {
-        use crate::vga_buffer::ColourCode;
-        use crate::vga_buffer::Colour;
+        use vga::colors::Color16;
         // println!("[{}] {}", record.level(), record.args());
         let level_colour = match record.level() {
-            Level::Error => Colour::Red,
-            Level::Warn => Colour::Yellow,
-            Level::Trace => Colour::Cyan,
-            _ => Colour::Green,
+            Level::Error => Color16::Red,
+            Level::Warn => Color16::Yellow,
+            Level::Trace => Color16::Cyan,
+            _ => Color16::Green,
         };
-        crate::vga_buffer::print_colored(&format!("[{}] ", record.level()), ColourCode::new(level_colour, Colour::Black));
-        crate::vga_buffer::print_colored(&format!("{}\n", record.args()), ColourCode::new(Colour::White, Colour::Black));
+        crate::vga_buffer::print_colored(&format!("[{}] ", record.level()), level_colour);
+        crate::vga_buffer::print_colored(&format!("{}\n", record.args()), Color16::White);
     }
 
     fn flush(&self) {}

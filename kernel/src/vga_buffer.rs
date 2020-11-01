@@ -5,11 +5,13 @@ use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+use vga::colors::{Color16, TextModeColor};
+use vga::writers::{ScreenCharacter, TextWriter, Text40x25, Text40x50, Text80x25};
+
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
-        column_position: 0,
-        colour_code: ColourCode::new(Colour::Pink, Colour::Black),
-        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) }, //0xb8000 = text, 0xa0000 = vga mode 0x13
+        mode: ModeEnum::NoMode,
+        cursor_pos: (0,0),
     });
 }
 
@@ -34,7 +36,7 @@ pub fn _print(args: fmt::Arguments) {
     });
 }
 
-pub fn print_colored(string: &str, colour_code: ColourCode) {
+pub fn print_colored(string: &str, colour_code: Color16) {
     use x86_64::instructions::interrupts;
 
     interrupts::without_interrupts(|| {
@@ -42,7 +44,84 @@ pub fn print_colored(string: &str, colour_code: ColourCode) {
     });
 }
 
-// use crate::{serial_print, serial_println};
+pub fn set_mode(mode: ModeEnum) {
+    use x86_64::instructions::interrupts;
+
+    interrupts::without_interrupts(|| {
+        WRITER.lock().set_mode(mode);
+    });
+}
+
+#[derive(Copy, Clone)]
+pub enum ModeEnum {
+    NoMode,
+    Text40x25(Text40x25),
+    Text40x50(Text40x50),
+    Text80x25(Text80x25),
+}
+
+pub struct Writer {
+    mode: ModeEnum,
+    cursor_pos: (usize, usize),
+}
+
+impl Writer {
+    fn set_mode(&mut self, mode: ModeEnum) {
+        self.mode = mode;
+        match mode {
+            ModeEnum::Text40x25(m) => m.set_mode(),
+            _ => {},
+        }
+    }
+
+    fn new_line(&mut self) {
+
+    }
+
+    fn clear_row(&mut self, row: usize) {
+
+    }
+
+    pub fn write_string(&mut self, s: &str) {
+        match self.mode {
+            ModeEnum::Text40x25(m) => {
+                let color = TextModeColor::new(Color16::Pink, Color16::Black);
+                let width = 40;
+                let height = 25;
+                for byte in s.bytes() {
+                    match byte {
+                        0x20..=0x7e => {
+                            let char = ScreenCharacter::new(byte, color);
+                            m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
+                            self.cursor_pos.0 += 1;
+                            if self.cursor_pos.0 >= width {
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 += 1;
+                            }
+                        },
+                        b'\n' => {
+                            self.cursor_pos.0 = 0;
+                            self.cursor_pos.1 += 1;
+                        },
+                        _ => {}, //Not writable
+                    }
+                }
+            },
+            _ => {}, //Can't do anything without a mode
+        }
+    }
+
+    pub fn write_string_coloured(&mut self, s: &str, colour_code: Color16) {
+
+    }
+}
+
+impl fmt::Write for Writer {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write_string(s);
+        Ok(())
+    }
+}
 
 #[test_case]
 fn test_println_simple() {
@@ -70,150 +149,4 @@ fn test_println_output() {
             assert_eq!(char::from(screen_char.ascii_character), c);
         }
     });
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Colour {
-    Black = 0,
-    Blue = 1,
-    Green = 2,
-    Cyan = 3,
-    Red = 4,
-    Magenta = 5,
-    Brown = 6,
-    LightGray = 7,
-    DarkGray = 8,
-    LightBlue = 9,
-    LightGreen = 10,
-    LightCyan = 11,
-    LightRed = 12,
-    Pink = 13,
-    Yellow = 14,
-    White = 15,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(transparent)]
-pub struct ColourCode(u8);
-
-impl ColourCode {
-    pub fn new(foreground: Colour, background: Colour) -> ColourCode {
-        ColourCode((background as u8) << 4 | (foreground as u8))
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(C)]
-pub struct ScreenChar {
-    ascii_character: u8,
-    colour_code: ColourCode,
-}
-
-const BUFFER_HEIGHT: usize = 25;
-const BUFFER_WIDTH: usize = 80;
-
-#[repr(transparent)]
-pub struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
-}
-
-pub struct Writer {
-    pub column_position: usize,
-    pub colour_code: ColourCode,
-    pub buffer: &'static mut Buffer,
-}
-
-impl Writer {
-    pub fn write_byte(&mut self, byte: u8) {
-        match byte {
-            b'\n' => self.new_line(),
-            byte => {
-                if self.column_position >= BUFFER_WIDTH {
-                    self.new_line();
-                }
-
-                let row = BUFFER_HEIGHT - 1;
-                let col = self.column_position;
-
-                let colour_code = self.colour_code;
-                self.buffer.chars[row][col].write(ScreenChar {
-                    ascii_character: byte,
-                    colour_code: colour_code,
-                });
-                self.column_position += 1;
-            }
-        }
-    }
-
-    pub fn write_byte_colored(&mut self, byte: u8, colour_code: ColourCode) {
-        match byte {
-            b'\n' => self.new_line(),
-            byte => {
-                if self.column_position >= BUFFER_WIDTH {
-                    self.new_line();
-                }
-
-                let row = BUFFER_HEIGHT - 1;
-                let col = self.column_position;
-
-                self.buffer.chars[row][col].write(ScreenChar {
-                    ascii_character: byte,
-                    colour_code: colour_code,
-                });
-                self.column_position += 1;
-            }
-        }
-    }
-
-    fn new_line(&mut self) {
-        for row in 1..BUFFER_HEIGHT {
-            for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
-            }
-        }
-        self.clear_row(BUFFER_HEIGHT - 1);
-        self.column_position = 0;
-    }
-
-    fn clear_row(&mut self, row: usize) {
-        let blank = ScreenChar {
-            ascii_character: b' ',
-            colour_code: self.colour_code,
-        };
-        for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
-        }
-    }
-
-    pub fn write_string(&mut self, s: &str) {
-        for byte in s.bytes() {
-            match byte {
-                // printable ASCII byte or newline
-                0x20..=0x7e | b'\n' => self.write_byte(byte),
-                // not part of printable ASCII range
-                _ => self.write_byte(0xfe),
-            }
-        }
-    }
-
-    pub fn write_string_coloured(&mut self, s: &str, colour_code: ColourCode) {
-        for byte in s.bytes() {
-            match byte {
-                // printable ASCII byte or newline
-                0x20..=0x7e | b'\n' => self.write_byte_colored(byte, colour_code),
-                // not part of printable ASCII range
-                _ => self.write_byte(0xfe),
-            }
-        }
-    }
-}
-
-impl fmt::Write for Writer {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.write_string(s);
-        Ok(())
-    }
 }
