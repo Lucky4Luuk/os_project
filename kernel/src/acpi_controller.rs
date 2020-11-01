@@ -1,6 +1,6 @@
 use acpi::{
-    handler::{AcpiHandler, PhysicalMapping},
-    Acpi, AcpiError,
+    AcpiHandler, PhysicalMapping,
+    AcpiTables, AcpiError,
 };
 
 use aml::{
@@ -38,13 +38,14 @@ fn truncate(s: &str, max_chars: usize) -> &str {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct AcpiMemoryHandler {
     pub phys_mem_offset: u64,
 }
 
 pub struct AcpiController {
     pub phys_mem_offset: u64,
-    pub acpi: Acpi,
+    pub acpi: AcpiTables<AcpiMemoryHandler>,
     pub aml: AmlContext,
 }
 
@@ -52,10 +53,10 @@ impl AcpiController {
     // TODO: Error handling
     pub fn new(phys_mem_offset: u64) -> Result<Self, AcpiError> {
         let acpi_data = {
-            let mut acpi_handler = AcpiMemoryHandler {
+            let acpi_handler = AcpiMemoryHandler {
                 phys_mem_offset: phys_mem_offset,
             };
-            unsafe { acpi::search_for_rsdp_bios(&mut acpi_handler) }
+            unsafe { AcpiTables::search_for_rsdp_bios(acpi_handler) }
         }?;
 
         let mut aml_context = AmlContext::new();
@@ -64,7 +65,11 @@ impl AcpiController {
                 debug!("DSDT table located!");
                 let address = phys_mem_offset + dsdt.address as u64;
                 let stream = unsafe { core::slice::from_raw_parts(address as *mut u8, dsdt.length as usize) };
-                aml_context.parse_table(stream).expect("Failed to load AML table!");
+                // aml_context.parse_table(stream).expect("Failed to load AML table!");
+                match aml_context.parse_table(stream) {
+                    Ok(ok) => debug!("DSDT AML table parsed!"),
+                    Err(err) => error!("DSDT AML table failed to parse!"),
+                }
                 debug!("DSDT table parsed");
             },
             None => {},
@@ -74,7 +79,11 @@ impl AcpiController {
             debug!("SSDT table located!");
             let address = phys_mem_offset + ssdt.address as u64;
             let stream = unsafe { core::slice::from_raw_parts(address as *mut u8, ssdt.length as usize) };
-            aml_context.parse_table(stream).expect("Failed to load AML table!");
+            // aml_context.parse_table(stream).expect("Failed to load AML table!");
+            match aml_context.parse_table(stream) {
+                Ok(ok) => debug!("SSDT AML table parsed!"),
+                Err(err) => error!("SSDT AML table failed to parse!"),
+            }
             debug!("SSDT table parsed");
         }
 
@@ -86,17 +95,24 @@ impl AcpiController {
     }
 
     pub fn get_cpu(&self) -> crate::hardware::cpu::CPU {
-        let cpu_name = aml::AmlName::from_str(r"\_SB_.CPUS").expect("Failed to parse CPU!");
-        let cpu_value = self.aml.namespace.get_by_path(&cpu_name).expect("Failed to get CPU device!");
+        let cpu_name = aml::AmlName::from_str(r"\_SB_.CPUS").expect("Failed to parse CPU!"); //TODO: Perhaps more error checking?
+        let cpu_value = self.aml.namespace.get_by_path(&cpu_name).expect("Failed to get CPU device!"); //TODO: Perhaps more error checking?
 
-        let cpu_core_count = self.acpi.application_processors.len() + 1; //+1 because base processor
+        // let cpu_core_count = self.acpi.application_processors.len() + 1; //+1 because base processor
+        let platform_info = self.acpi.platform_info().expect("Failed to get platform info!");
+        let processor_info = match platform_info.processor_info {
+            Some(info) => info,
+            None => panic!("Failed to get processor info!"),
+        };
+
+        let cpu_core_count = processor_info.application_processors.len() + 1;
 
         let mut cpu = crate::hardware::cpu::CPU::new();
 
         for i in 0..cpu_core_count {
-            let acpi_core: acpi::Processor = {
-                if i == 0 { self.acpi.boot_processor.expect("Failed to locate a boot processor!") }
-                else { self.acpi.application_processors[i - 1] }
+            let acpi_core: acpi::platform::Processor = {
+                if i == 0 { processor_info.boot_processor }
+                else { processor_info.application_processors[i - 1] }
             };
 
             let cpu_aml_address = format!(r"\_SB_.CPUS.C{:03}", i);
@@ -127,62 +143,75 @@ impl AcpiController {
         cpu
     }
 
+    pub fn get_hpet_info(&self) -> acpi::HpetInfo {
+        acpi::HpetInfo::new(&self.acpi).expect("ACPI table has no information on HPET!")
+    }
+
     pub fn get_apic_addr(&self) -> u64 {
-        let interrupt_model = self.acpi.interrupt_model.as_ref().unwrap();
+        let platform_info = self.acpi.platform_info().expect("Failed to get platform info!");
+        let interrupt_model = platform_info.interrupt_model;
         match interrupt_model {
-            acpi::interrupt::InterruptModel::Apic(apic) => {
+            acpi::platform::InterruptModel::Apic(apic) => {
                 return apic.local_apic_address
             },
-            acpi::interrupt::InterruptModel::Pic => println!("Did not find APIC!"),
+            acpi::platform::InterruptModel::Unknown => println!("Did not find APIC!"),
             _ => {},
         }
         panic!("Failed to locate APIC address! Is it supported on this system?");
     }
 
     pub fn get_io_apic_addr(&self) -> Vec<u32> {
-        let interrupt_model = self.acpi.interrupt_model.as_ref().unwrap();
+        let platform_info = self.acpi.platform_info().expect("Failed to get platform info!");
+        let interrupt_model = platform_info.interrupt_model;
         let mut result = Vec::new();
         match interrupt_model {
-            acpi::interrupt::InterruptModel::Apic(apic) => {
+            acpi::platform::InterruptModel::Apic(apic) => {
                 for io_apic in &apic.io_apics {
                     result.push(io_apic.address);
                 }
             },
-            acpi::interrupt::InterruptModel::Pic => println!("Did not find APIC!"),
+            acpi::platform::InterruptModel::Unknown => println!("Did not find APIC!"),
             _ => {},
         }
         result
     }
 
     pub fn debug_print(&self) {
+        let platform_info = self.acpi.platform_info().expect("Failed to get platform info!");
+        let processor_info = match platform_info.processor_info {
+            Some(info) => info,
+            None => panic!("Failed to get processor info!"),
+        };
+        let interrupt_model = platform_info.interrupt_model;
+
         println!("=====ACPI=====");
 
-        println!("ACPI revision: {}", self.acpi.acpi_revision);
+        // println!("ACPI revision: {}", self.acpi.acpi_revision);
 
-        println!("Boot processor: {:?}", self.acpi.boot_processor);
+        println!("Boot processor: {:?}", processor_info.boot_processor);
 
-        println!("AP count: {}", self.acpi.application_processors.len());
-        for processor in &self.acpi.application_processors {
+        println!("AP count: {}", processor_info.application_processors.len());
+        for processor in &processor_info.application_processors {
             println!("AP: {:?}", processor);
         }
 
         println!("SSDT count: {}", self.acpi.ssdts.len());
 
-        println!("Power profile: {:?}", self.acpi.power_profile);
+        println!("Power profile: {:?}", platform_info.power_profile);
 
         println!("=====++++=====");
 
         println!("");
 
-        let interrupt_model = self.acpi.interrupt_model.as_ref().unwrap();
+        let interrupt_model = interrupt_model;
         match interrupt_model {
-            acpi::interrupt::InterruptModel::Apic(apic) => {
+            acpi::platform::InterruptModel::Apic(apic) => {
                 println!("APIC_addr: 0x{:x}", apic.local_apic_address);
                 for io_apic in &apic.io_apics {
                     println!("io_apic_addr_{}: 0x{:x}", io_apic.id, io_apic.address);
                 }
             },
-            acpi::interrupt::InterruptModel::Pic => println!("Did not find APIC!"),
+            acpi::platform::InterruptModel::Unknown => println!("Did not find APIC!"),
             _ => {},
         }
     }
@@ -190,10 +219,10 @@ impl AcpiController {
 
 impl AcpiHandler for AcpiMemoryHandler {
     unsafe fn map_physical_region<T>(
-        &mut self,
+        &self,
         physical_address: usize,
         size: usize
-    ) -> PhysicalMapping<T> {
+    ) -> PhysicalMapping<Self, T> {
         // `physical_address` might not be page aligned, so padding might be needed
         // The size of the allocated memory needs to be the same as or bigger than size_of::<T>()
         // `size` should contain the size of T in bytes, I think, so I'll simply allocate that
@@ -205,10 +234,13 @@ impl AcpiHandler for AcpiMemoryHandler {
             virtual_start: core::ptr::NonNull::new_unchecked(virtual_start as *mut u8 as *mut T),
             region_length: size,
             mapped_length: size,
+            handler: Self {
+                phys_mem_offset: self.phys_mem_offset,
+            },
         }
     }
 
-    fn unmap_physical_region<T>(&mut self, region: PhysicalMapping<T>) {
+    fn unmap_physical_region<T>(&self, region: &PhysicalMapping<Self, T>) {
         // Unmap the given physical region
     }
 }

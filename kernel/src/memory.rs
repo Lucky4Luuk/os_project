@@ -201,15 +201,25 @@ fn translate_addr_inner(addr: VirtAddr, physical_memory_offset: VirtAddr)
 // Utility functions
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// TODO: Ensure address alignment
+
 pub unsafe fn memory_read_32(addr: u64) -> u32 {
     let phys_addr = PHYSICAL_MEMORY_OFFSET.load(Ordering::Relaxed) + addr;
     core::ptr::read(phys_addr as *mut u32)
 }
 
-/// TODO: Ensure address alignment
 pub unsafe fn memory_write_32(addr: u64, value: u32) {
     let phys_addr = PHYSICAL_MEMORY_OFFSET.load(Ordering::Relaxed) + addr;
     core::ptr::write(phys_addr as *mut u32, value);
+}
+
+pub unsafe fn memory_read_64(addr: u64) -> u64 {
+    let phys_addr = PHYSICAL_MEMORY_OFFSET.load(Ordering::Relaxed) + addr;
+    core::ptr::read(phys_addr as *mut u64)
+}
+
+pub unsafe fn memory_write_64(addr: u64, value: u64) {
+    let phys_addr = PHYSICAL_MEMORY_OFFSET.load(Ordering::Relaxed) + addr;
+    core::ptr::write(phys_addr as *mut u64, value);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -69,6 +69,7 @@ pub unsafe fn apic_set_timer_mask(apic_addr: u64, mask: bool) {
     memory_write_32(apic_addr + LAPIC_LVT_TIMER, entry);
 }
 
+/// Doesn't work lol
 pub unsafe fn apic_set_timer(apic_id: u8) {
     let apic_addr = get_apic_address(apic_id);
 

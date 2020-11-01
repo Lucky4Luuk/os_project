@@ -111,6 +111,11 @@ impl Writer {
                 for byte in s.bytes() {
                     match byte {
                         0x20..=0x7e => {
+                            if self.cursor_pos.1 >= height {
+                                m.clear_screen();
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 = 0;
+                            }
                             let char = ScreenCharacter::new(byte, color);
                             m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
                             self.cursor_pos.0 += 1;
@@ -134,6 +139,11 @@ impl Writer {
                 for byte in s.bytes() {
                     match byte {
                         0x20..=0x7e => {
+                            if self.cursor_pos.1 >= height {
+                                m.clear_screen();
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 = 0;
+                            }
                             let char = ScreenCharacter::new(byte, color);
                             m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
                             self.cursor_pos.0 += 1;
@@ -157,6 +167,11 @@ impl Writer {
                 for byte in s.bytes() {
                     match byte {
                         0x20..=0x7e => {
+                            if self.cursor_pos.1 >= height {
+                                m.clear_screen();
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 = 0;
+                            }
                             let char = ScreenCharacter::new(byte, color);
                             m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
                             self.cursor_pos.0 += 1;
@@ -188,8 +203,11 @@ impl Writer {
                             self.cursor_pos.1 += 1;
                         },
                         _ => {
-                            // let char = ScreenCharacter::new(byte, color);
-                            // m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
+                            if self.cursor_pos.1 >= height {
+                                m.clear_screen(0);
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 = 0;
+                            }
                             m.draw_character(self.cursor_pos.0 * char_width, self.cursor_pos.1 * char_height, char, 255);
                             self.cursor_pos.0 += 1;
                             if self.cursor_pos.0 >= width {
@@ -213,8 +231,11 @@ impl Writer {
                             self.cursor_pos.1 += 1;
                         },
                         _ => {
-                            // let char = ScreenCharacter::new(byte, color);
-                            // m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
+                            if self.cursor_pos.1 >= height {
+                                m.clear_screen(Color16::Black);
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 = 0;
+                            }
                             m.draw_character(self.cursor_pos.0 * char_width, self.cursor_pos.1 * char_height, char, fg_color);
                             self.cursor_pos.0 += 1;
                             if self.cursor_pos.0 >= width {

@@ -20,5 +20,5 @@ pub struct Processor {
     pub pblk_len: u8,
 
     pub is_ap: bool,
-    pub state: acpi::ProcessorState,
+    pub state: acpi::platform::ProcessorState,
 }

@@ -50,12 +50,27 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use kernel::memory::BootInfoFrameAllocator;
     use kernel::vga_buffer::ModeEnum;
-    use vga::writers::{Text80x25, Graphics320x200x256, Graphics640x480x16};
+    use vga::writers::{Text80x25, Graphics320x200x256, Graphics640x480x16, GraphicsWriter};
+    use vga::colors::Color16;
     use x86_64::{structures::paging::MapperAllSizes, VirtAddr};
 
     kernel::vga_buffer::set_mode(ModeEnum::Graphics640x480x16(
         Graphics640x480x16::new()
     ));
+
+    // match kernel::vga_buffer::WRITER.lock().mode {
+    //     ModeEnum::Graphics640x480x16(m) => {
+    //         for x in 0..640 {
+    //             for y in 0..480 {
+    //                 let mut color = Color16::Black;
+    //                 if (x + y) % 7 == 0 { color = Color16::DarkGrey; }
+    //                 if (x + y) % 14 == 0 { color = Color16::Brown; }
+    //                 m.set_pixel(x,y, color);
+    //             }
+    //         }
+    //     },
+    //     _ => {},
+    // }
 
     kernel_logger::init().expect("Failed to load the kernel logger!");
     println!("Hello, world!");
@@ -118,6 +133,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
             // controller.get_cpu();
             trace!("APIC_ADDR: {:#08X}", controller.get_apic_addr());
             kernel::apic::update_ioapic_addr(*controller.get_io_apic_addr().iter().next().expect("Failed to get the first IOAPIC addr!") as u64);
+
+            let hpet_info = controller.get_hpet_info();
+            trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
+            kernel::hardware::hpet::initialize_hpet();
         },
         Err(err) => {
             debug!("Did not find ACPI data :(");

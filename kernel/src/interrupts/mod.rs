@@ -155,10 +155,6 @@ extern "x86-interrupt" fn segment_not_present_handler(_stack_frame: &mut Interru
 /// Timer interrupt handler
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
     print!(".");
-    // unsafe {
-    //     PICS.lock()
-    //         .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
-    // }
     unsafe { apic::apic_send_eoi(0); }
 }
 
@@ -168,29 +164,15 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: &mut Interrup
 
     debug!("Keyboard interrupt!");
 
-    unsafe { apic::apic_send_eoi(0); }
-
-    /*
+    //Read the dataport so the buffer won't fill
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
-    //crate::task::keyboard::add_scancode(scancode); //From old code, absolute garbage
-    */
 
-    // unsafe {
-    //     PICS.lock()
-    //         .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
-    // }
-
-    // unsafe { apic::apic_send_eoi(0); }
+    unsafe { apic::apic_send_eoi(0); }
 }
 
 extern "x86-interrupt" fn acpi_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
     println!("ACPI INTERRUPT!");
-
-    // unsafe {
-    //     PICS.lock()
-    //         .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
-    // }
 
     unsafe { apic::apic_send_eoi(0); }
 }
