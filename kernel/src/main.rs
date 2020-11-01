@@ -50,11 +50,11 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use kernel::memory::BootInfoFrameAllocator;
     use kernel::vga_buffer::ModeEnum;
-    use vga::writers::Text40x25;
+    use vga::writers::{Text80x25, Graphics320x200x256, Graphics640x480x16};
     use x86_64::{structures::paging::MapperAllSizes, VirtAddr};
 
-    kernel::vga_buffer::set_mode(ModeEnum::Text40x25(
-        Text40x25::new()
+    kernel::vga_buffer::set_mode(ModeEnum::Graphics640x480x16(
+        Graphics640x480x16::new()
     ));
 
     kernel_logger::init().expect("Failed to load the kernel logger!");

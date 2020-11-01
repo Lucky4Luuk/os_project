@@ -6,7 +6,11 @@ use lazy_static::lazy_static;
 use spin::Mutex;
 
 use vga::colors::{Color16, TextModeColor};
-use vga::writers::{ScreenCharacter, TextWriter, Text40x25, Text40x50, Text80x25};
+use vga::writers::{
+    ScreenCharacter, TextWriter, GraphicsWriter,
+    Text40x25, Text40x50, Text80x25,
+    Graphics320x200x256, Graphics320x240x256, Graphics640x480x16,
+};
 
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
@@ -55,9 +59,14 @@ pub fn set_mode(mode: ModeEnum) {
 #[derive(Copy, Clone)]
 pub enum ModeEnum {
     NoMode,
+    //Text modes
     Text40x25(Text40x25),
     Text40x50(Text40x50),
     Text80x25(Text80x25),
+    //Graphics modes
+    Graphics320x200x256(Graphics320x200x256),
+    Graphics320x240x256(Graphics320x240x256),
+    Graphics640x480x16(Graphics640x480x16),
 }
 
 pub struct Writer {
@@ -70,6 +79,12 @@ impl Writer {
         self.mode = mode;
         match mode {
             ModeEnum::Text40x25(m) => m.set_mode(),
+            ModeEnum::Text40x50(m) => m.set_mode(),
+            ModeEnum::Text80x25(m) => m.set_mode(),
+
+            ModeEnum::Graphics320x200x256(m) => m.set_mode(),
+            ModeEnum::Graphics320x240x256(m) => m.set_mode(),
+            ModeEnum::Graphics640x480x16(m) => m.set_mode(),
             _ => {},
         }
     }
@@ -83,9 +98,14 @@ impl Writer {
     }
 
     pub fn write_string(&mut self, s: &str) {
+        self.write_string_coloured(s, Color16::Pink);
+    }
+
+    pub fn write_string_coloured(&mut self, s: &str, fg_color: Color16) {
         match self.mode {
+            //Text modes
             ModeEnum::Text40x25(m) => {
-                let color = TextModeColor::new(Color16::Pink, Color16::Black);
+                let color = TextModeColor::new(fg_color, Color16::Black);
                 let width = 40;
                 let height = 25;
                 for byte in s.bytes() {
@@ -107,12 +127,107 @@ impl Writer {
                     }
                 }
             },
+            ModeEnum::Text40x50(m) => {
+                let color = TextModeColor::new(fg_color, Color16::Black);
+                let width = 40;
+                let height = 50;
+                for byte in s.bytes() {
+                    match byte {
+                        0x20..=0x7e => {
+                            let char = ScreenCharacter::new(byte, color);
+                            m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
+                            self.cursor_pos.0 += 1;
+                            if self.cursor_pos.0 >= width {
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 += 1;
+                            }
+                        },
+                        b'\n' => {
+                            self.cursor_pos.0 = 0;
+                            self.cursor_pos.1 += 1;
+                        },
+                        _ => {}, //Not writable
+                    }
+                }
+            },
+            ModeEnum::Text80x25(m) => {
+                let color = TextModeColor::new(fg_color, Color16::Black);
+                let width = 80;
+                let height = 25;
+                for byte in s.bytes() {
+                    match byte {
+                        0x20..=0x7e => {
+                            let char = ScreenCharacter::new(byte, color);
+                            m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
+                            self.cursor_pos.0 += 1;
+                            if self.cursor_pos.0 >= width {
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 += 1;
+                            }
+                        },
+                        b'\n' => {
+                            self.cursor_pos.0 = 0;
+                            self.cursor_pos.1 += 1;
+                        },
+                        _ => {}, //Not writable
+                    }
+                }
+            },
+
+            //Graphics modes
+            ModeEnum::Graphics320x200x256(m) => {
+                // let color = TextModeColor::new(fg_color, Color16::Black);
+                let char_width = 8;
+                let char_height = 12; //???
+                let width = 320 / char_width;
+                let height = 200 / char_height;
+                for (offset, char) in s.chars().enumerate() {
+                    match char {
+                        '\n' => {
+                            self.cursor_pos.0 = 0;
+                            self.cursor_pos.1 += 1;
+                        },
+                        _ => {
+                            // let char = ScreenCharacter::new(byte, color);
+                            // m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
+                            m.draw_character(self.cursor_pos.0 * char_width, self.cursor_pos.1 * char_height, char, 255);
+                            self.cursor_pos.0 += 1;
+                            if self.cursor_pos.0 >= width {
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 += 1;
+                            }
+                        },
+                    }
+                }
+            },
+            ModeEnum::Graphics640x480x16(m) => {
+                // let color = TextModeColor::new(fg_color, Color16::Black);
+                let char_width = 8;
+                let char_height = 12; //???
+                let width = 640 / char_width;
+                let height = 480 / char_height;
+                for (offset, char) in s.chars().enumerate() {
+                    match char {
+                        '\n' => {
+                            self.cursor_pos.0 = 0;
+                            self.cursor_pos.1 += 1;
+                        },
+                        _ => {
+                            // let char = ScreenCharacter::new(byte, color);
+                            // m.write_character(self.cursor_pos.0, self.cursor_pos.1, char);
+                            m.draw_character(self.cursor_pos.0 * char_width, self.cursor_pos.1 * char_height, char, fg_color);
+                            self.cursor_pos.0 += 1;
+                            if self.cursor_pos.0 >= width {
+                                self.cursor_pos.0 = 0;
+                                self.cursor_pos.1 += 1;
+                            }
+                        },
+                    }
+                }
+            },
+
             _ => {}, //Can't do anything without a mode
         }
-    }
-
-    pub fn write_string_coloured(&mut self, s: &str, colour_code: Color16) {
-
     }
 }
 

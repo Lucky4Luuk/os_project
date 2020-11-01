@@ -10,7 +10,7 @@ edition = "2018"
 log = "0.4.11"
 
 rlibc = "1.0.0"
-bootloader = { version = "0.9.11", features = ["map_physical_memory"] }
+bootloader = { version = "0.9.11", features = ["map_physical_memory", "vga_320x200"] }
 volatile = "0.2.6"
 spin = "0.5.2"
 
