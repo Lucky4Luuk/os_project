@@ -10,6 +10,7 @@
 #[macro_use] extern crate alloc;
 
 use core::panic::PanicInfo;
+use core::sync::atomic::Ordering;
 use alloc::{boxed::Box, vec, vec::Vec, rc::Rc};
 
 use bootloader::{BootInfo, entry_point};
@@ -57,6 +58,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     kernel::vga_buffer::set_mode(ModeEnum::Graphics640x480x16(
         Graphics640x480x16::new()
     ));
+
+    // kernel::vga_buffer::set_mode(ModeEnum::Text80x25(
+    //     Text80x25::new()
+    // ));
 
     // match kernel::vga_buffer::WRITER.lock().mode {
     //     ModeEnum::Graphics640x480x16(m) => {
@@ -136,6 +141,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
             let hpet_info = controller.get_hpet_info();
             trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
+            kernel::hardware::hpet::HPET_BASE_ADDR.store(hpet_info.base_address as u64, Ordering::Relaxed);
             kernel::hardware::hpet::initialize_hpet();
         },
         Err(err) => {

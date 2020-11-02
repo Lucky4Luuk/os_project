@@ -71,7 +71,8 @@ run-args = [
     # "-M", "q35",
     # "+apic",
     # "-machine", "kernel-irqchip=on",
-    # "-cpu", "qemu64",
+    "-cpu", "qemu64",
+    # "-cpu", "host",
 
     "-smp", "4",
 ]
