@@ -1,5 +1,3 @@
-//TODO: Move this to interrupts/apic.rs
-
 use cpuio::outb;
 
 use core::sync::atomic::{AtomicU64, Ordering};
@@ -86,62 +84,4 @@ pub unsafe fn apic_set_timer(apic_id: u8) {
 
     trace!("apic timer ticks in 10ms");
     trace!("{}", ticks);
-}
-
-// pub unsafe fn apic_set_timer(apic_id: u8) {
-//     let apic_addr = get_apic_address(apic_id);
-//
-//     memory_write_32(apic_addr + LAPIC_TIMER_DIVIDE_CONFIG, 0x3);
-// }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// IOAPIC
-///////////////////////////////////////////////////////////////////////////////////////////////////
-static IOAPIC_ADDR: AtomicU64 = AtomicU64::new(0);
-pub fn update_ioapic_addr(addr: u64) {
-    IOAPIC_ADDR.store(addr, Ordering::Relaxed);
-}
-
-pub unsafe fn ioapic_read(index: u32) -> u32 {
-    let addr = IOAPIC_ADDR.load(Ordering::Relaxed); //Read from the atomic IOAPIC_ADDR
-    // Write the index to the index register
-    memory_write_32(addr, index);
-    // Read the value from the data register
-    memory_read_32(addr + 0x10)
-}
-
-pub unsafe fn ioapic_write(index: u32, value: u32) {
-    let addr = IOAPIC_ADDR.load(Ordering::Relaxed); //Read from the atomic IOAPIC_ADDR
-    // Write the index to the index register
-    memory_write_32(addr, index);
-    // Write the value to the data register
-    memory_write_32(addr + 0x10, value);
-}
-
-pub unsafe fn ioapic_set_irq(irq: u8, apic_id: u32, vector: u8) {
-    let low_index: u32 = 0x10 + (irq as u32)*2;
-    let high_index: u32 = 0x10 + (irq as u32)*2 + 1;
-
-    let mut high = ioapic_read(high_index);
-    // Set APIC ID
-    high &= !0xff000_000;
-    high |= apic_id << 24;
-    ioapic_write(high_index, high);
-
-    let mut low = ioapic_read(low_index);
-
-    // Unmask the IRQ
-    low &= !(1<<16);
-
-    // Set to physical delivery mode
-    low &= !(1<<11);
-
-    // Set to fixed delivery mode
-    low &= !0x700;
-
-    // Set delivery vector
-    low &= !0xff;
-    low |= vector as u32;
-
-    ioapic_write(low_index, low);
 }

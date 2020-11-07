@@ -7,6 +7,7 @@ use spin;
 use crate::{print, println, gdt, hlt_loop};
 
 pub mod apic;
+pub mod ioapic;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PIC
@@ -29,10 +30,10 @@ pub fn initialize_apic(id: u8) {
         apic::enable_apic(id);
 
         // Default IRQs
-        apic::ioapic_set_irq(0, id as u32, InterruptIndex::Timer.as_u8());
-        apic::ioapic_set_irq(1, id as u32, InterruptIndex::Keyboard.as_u8());
-        apic::ioapic_set_irq(7, id as u32, InterruptIndex::Spurious.as_u8());
-        apic::ioapic_set_irq(8, id as u32, InterruptIndex::RTC.as_u8());
+        ioapic::ioapic_set_irq(0, id as u32, InterruptIndex::Timer.as_u8());
+        ioapic::ioapic_set_irq(1, id as u32, InterruptIndex::Keyboard.as_u8());
+        ioapic::ioapic_set_irq(7, id as u32, InterruptIndex::Spurious.as_u8());
+        ioapic::ioapic_set_irq(8, id as u32, InterruptIndex::RTC.as_u8());
 
         //apic::apic_set_timer(id);
     }

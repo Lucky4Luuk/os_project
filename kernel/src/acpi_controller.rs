@@ -1,6 +1,7 @@
 use acpi::{
     AcpiHandler, PhysicalMapping,
     AcpiTables, AcpiError,
+    platform::{IoApic, InterruptSourceOverride},
 };
 
 use aml::{
@@ -160,20 +161,30 @@ impl AcpiController {
         panic!("Failed to locate APIC address! Is it supported on this system?");
     }
 
-    pub fn get_io_apic_addr(&self) -> Vec<u32> {
+    pub fn get_io_apic(&self) -> Vec<IoApic> {
         let platform_info = self.acpi.platform_info().expect("Failed to get platform info!");
         let interrupt_model = platform_info.interrupt_model;
-        let mut result = Vec::new();
         match interrupt_model {
             acpi::platform::InterruptModel::Apic(apic) => {
-                for io_apic in &apic.io_apics {
-                    result.push(io_apic.address);
-                }
+                return apic.io_apics;
             },
             acpi::platform::InterruptModel::Unknown => println!("Did not find APIC!"),
             _ => {},
         }
-        result
+        Vec::new()
+    }
+
+    pub fn get_io_apic_iso(&self) -> Vec<InterruptSourceOverride> {
+        let platform_info = self.acpi.platform_info().expect("Failed to get platform info!");
+        let interrupt_model = platform_info.interrupt_model;
+        match interrupt_model {
+            acpi::platform::InterruptModel::Apic(apic) => {
+                return apic.interrupt_source_overrides;
+            },
+            acpi::platform::InterruptModel::Unknown => println!("Did not find APIC!"),
+            _ => {},
+        }
+        Vec::new()
     }
 
     pub fn debug_print(&self) {
