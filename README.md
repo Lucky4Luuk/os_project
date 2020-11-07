@@ -8,8 +8,10 @@ An attempt at a microkernel, but honestly, it will probably fail seeing as I jus
 - [ ] Check if LAPIC is always mapped to the same memory location.
 
 ## In progress
-- [ ] Redo the IOAPIC code to support multiple IOAPICs.
 - [ ] Read the ISO tables to properly route legacy interrupts.
+
+## Recently completed
+- [x] Redo the IOAPIC code to support multiple IOAPICs.
 
 ## Long term goals
 - [ ] Userspace

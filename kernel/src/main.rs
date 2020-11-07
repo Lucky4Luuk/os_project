@@ -136,15 +136,15 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
             // controller.debug_print();
 
             // controller.get_cpu();
-            trace!("APIC_ADDR: {:#08X}", controller.get_apic_addr());
-            for ioapic in controller.get_io_apic().iter() {
-                trace!("IOAPIC_ADDR: {:#08X}", ioapic.address);
-            }
+            // trace!("APIC_ADDR: {:#08X}", controller.get_apic_addr());
+            // for ioapic in controller.get_io_apic().iter() {
+            //     trace!("IOAPIC_ADDR: {:#08X}", ioapic.address);
+            // }
             let mut ioapics = kernel::interrupts::ioapic::IOAPICS.lock();
             *ioapics = controller.get_io_apic();
-            for iso in controller.get_io_apic_iso().iter() {
-                trace!("ISO: {:?}", iso);
-            }
+            // for iso in controller.get_io_apic_iso().iter() {
+            //     trace!("ISO: {:?}", iso);
+            // }
 
             let hpet_info = controller.get_hpet_info();
             trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
