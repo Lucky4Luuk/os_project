@@ -50,7 +50,7 @@ pub enum InterruptIndex {
     Keyboard = PIC_OFFSET + 1,
 
     Spurious = PIC_OFFSET + 7,
-    RTC = PIC_OFFSET + 5,
+    RTC = PIC_OFFSET + 8,
     ACPI = PIC_OFFSET + 9,
 
     PrimaryATA = PIC_OFFSET + 14,
