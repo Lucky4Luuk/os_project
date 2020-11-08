@@ -128,36 +128,34 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         None => warn!("Failed to find the CPU's TSC info!"),
     }
 
-    let acpi_controller = kernel::acpi_controller::AcpiController::new(phys_mem_offset.as_u64());
+    let acpi_controller = kernel::acpi_controller::AcpiController::new(phys_mem_offset.as_u64()).expect("Failed to get ACPI data!");
 
-    match acpi_controller {
-        Ok(controller) => {
-            debug!("Found ACPI data!");
-            // controller.debug_print();
+    debug!("Found ACPI data!");
+    // acpi_controller.debug_print();
 
-            // controller.get_cpu();
-            // trace!("APIC_ADDR: {:#08X}", controller.get_apic_addr());
-            // for ioapic in controller.get_io_apic().iter() {
-            //     trace!("IOAPIC_ADDR: {:#08X}", ioapic.address);
-            // }
-            let mut ioapics = kernel::interrupts::ioapic::IOAPICS.lock();
-            *ioapics = controller.get_io_apic();
-            // for iso in controller.get_io_apic_iso().iter() {
-            //     trace!("ISO: {:?}", iso);
-            // }
-
-            let hpet_info = controller.get_hpet_info();
-            trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
-            kernel::hardware::hpet::HPET_BASE_ADDR.store(hpet_info.base_address as u64, Ordering::Relaxed);
-            kernel::hardware::hpet::initialize_hpet();
-        },
-        Err(err) => {
-            debug!("Did not find ACPI data :(");
-            debug!("Reason: {:?}", err);
-        },
+    // acpi_controller.get_cpu();
+    // trace!("APIC_ADDR: {:#08X}", acpi_controller.get_apic_addr());
+    // for ioapic in acpi_controller.get_io_apic().iter() {
+    //     trace!("IOAPIC_ADDR: {:#08X}", ioapic.address);
+    // }
+    {
+        let mut ioapics = kernel::interrupts::ioapic::IOAPICS.lock();
+        *ioapics = acpi_controller.get_io_apic();
+        for iso in acpi_controller.get_io_apic_iso().iter() {
+            trace!("ISO: {:?}", iso);
+        }
     }
 
-    kernel::interrupts::initialize_apic(0);
+    let hpet_info = acpi_controller.get_hpet_info();
+    trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
+    kernel::hardware::hpet::HPET_BASE_ADDR.store(hpet_info.base_address as u64, Ordering::Relaxed);
+    kernel::hardware::hpet::initialize_hpet();
+
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        debug!("Broken?");
+        kernel::interrupts::initialize_apic(0, acpi_controller.get_io_apic_iso());
+        debug!("Broken2?");
+    });
 
     debug!("[RTC] Sleeping for 2 seconds");
     debug!("RDTSC value: {}", kernel::hardware::rdtsc::read_rdtsc());

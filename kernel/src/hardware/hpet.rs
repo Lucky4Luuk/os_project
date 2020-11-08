@@ -47,6 +47,24 @@ fn hpet_write_32(addr: u64, val: u32) {
     }
 }
 
+fn hpet_read_32(addr: u64) -> u32 {
+    unsafe {
+        memory_read_32(HPET_BASE_ADDR.load(Ordering::Relaxed) + addr)
+    }
+}
+
+fn hpet_write_64(addr: u64, val: u64) {
+    unsafe {
+        memory_write_64(HPET_BASE_ADDR.load(Ordering::Relaxed) + addr, val)
+    }
+}
+
+fn hpet_read_64(addr: u64) -> u64 {
+    unsafe {
+        memory_read_64(HPET_BASE_ADDR.load(Ordering::Relaxed) + addr)
+    }
+}
+
 /// This function guarantees a timer that will trigger in `timer` amount or longer.
 fn hpet_set_oneshot_timer(channel: u8, mut timer: u32) {
     let period = HPET_INFO.lock().period;
@@ -59,14 +77,27 @@ fn hpet_set_period_timer(channel: u8, mut timer: u32) {
     if timer < period {
         timer = period;
     }
-    // let ioapic_irq_allowed = hpet_read_irq(channel);
+    let ioapic_irq_allowed = hpet_read_irq(channel);
     // trace!("HPET IRQ: 0b{:032b}", ioapic_irq_allowed);
-    // 'search: for i in 0..32 {
-    //     if ioapic_irq_allowed & (0x1 << i) != 0 {
-    //         trace!("Available IRQ: {}", i);
-    //     }
-    // }
-    // hpet_write_32(HPET_REG_TMR_CONCAP + 0x20 * channel, ioapic_irq);
+    let mut ioapic_irq = 0;
+    'search: for i in 0..32 {
+        if ioapic_irq_allowed & (0x1 << i) != 0 {
+            trace!("[HPET] Available IRQ: {}", i);
+            ioapic_irq = i;
+            break 'search;
+        }
+    }
+    let channel_offset = 0x20 * channel as u64;
+    //TODO: 64 bit timer stuff probably only works when the HPET supports 64 bit mode lol
+    hpet_write_64(HPET_REG_TMR_CONCAP + channel_offset, ioapic_irq);
+    hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, hpet_read_64(HPET_REG_MAIN_CNT_V) + timer as u64);
+    hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, timer as u64);
+
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        use crate::interrupts::ioapic;
+        use crate::interrupts::InterruptIndex;
+        // ioapic::ioapic_set_irq(ioapic_irq, 0, InterruptIndex::HPET_Timer);
+    });
 }
 
 /// Collects a bunch of information of HPET and enables a periodic timer on the first
@@ -91,7 +122,7 @@ pub fn initialize_hpet() {
     //Enable a periodic timer on channel 1
     //No need to check if its available, because
     //every system where HPET is supported has a minimum of 3 channels available
-    hpet_set_period_timer(0, period);
+    hpet_set_period_timer(0, 2e+15 as u32); //Replace 2e+15 by period in future, otherwise it only runs every 2 seconds
 
     let mut hpet_info = HPET_INFO.lock();
     *hpet_info = HPET_Information {

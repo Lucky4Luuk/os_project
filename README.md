@@ -16,3 +16,9 @@ An attempt at a microkernel, but honestly, it will probably fail seeing as I jus
 ## Long term goals
 - [ ] Userspace
 - [ ] Some sort of GUI
+
+## Notes on various topics
+My brain is a mess, so this exists to keep notes.
+### ISO tables
+The InterruptIndex table I have right now is basically useless.
+The number seems to only be used to set up the index in the IDT and then it just gets passed as the vector. I might as well map it out myself, I reckon. So far, assigning a random number instead of whatever number I got from my old PIC code seems to work 100% fine.

@@ -4,6 +4,9 @@ use x86_64::structures::idt::PageFaultErrorCode;
 use pic8259_simple::ChainedPics;
 use spin;
 
+use acpi::platform::InterruptSourceOverride;
+use alloc::vec::Vec;
+
 use crate::{print, println, gdt, hlt_loop};
 
 pub mod apic;
@@ -21,7 +24,7 @@ pub const PIC_OFFSET: u8 = 32;
 //     spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
 //NOTE: Maybe this belongs in apic.rs?
-pub fn initialize_apic(id: u8) {
+pub fn initialize_apic(id: u8, isos: Vec<InterruptSourceOverride>) {
     unsafe {
         apic::disable_pic();
 
@@ -34,6 +37,7 @@ pub fn initialize_apic(id: u8) {
         ioapic::ioapic_set_irq(1, id as u32, InterruptIndex::Keyboard.as_u8());
         ioapic::ioapic_set_irq(7, id as u32, InterruptIndex::Spurious.as_u8());
         ioapic::ioapic_set_irq(8, id as u32, InterruptIndex::RTC.as_u8());
+        trace!("yep");
 
         //apic::apic_set_timer(id);
     }
@@ -46,7 +50,7 @@ pub enum InterruptIndex {
     Keyboard = PIC_OFFSET + 1,
 
     Spurious = PIC_OFFSET + 7,
-    RTC = PIC_OFFSET + 8,
+    RTC = PIC_OFFSET + 5,
     ACPI = PIC_OFFSET + 9,
 
     PrimaryATA = PIC_OFFSET + 14,
