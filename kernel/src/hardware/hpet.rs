@@ -1,5 +1,6 @@
 use core::sync::atomic::{AtomicU64, Ordering};
 
+use crate::interrupts::InterruptIndex;
 use crate::memory::{memory_read_64, memory_write_64, memory_read_32, memory_write_32};
 
 pub static HPET_BASE_ADDR: AtomicU64 = AtomicU64::new(0xFED0_0000);
@@ -72,14 +73,14 @@ fn hpet_set_oneshot_timer(channel: u8, mut timer: u32) {
 }
 
 /// This function guarantees a timer that will trigger every `timer` amount or longer.
-fn hpet_set_period_timer(channel: u8, mut timer: u32) {
+fn hpet_set_period_timer(channel: u8, mut timer: u32, idt_index: InterruptIndex) {
     let period = HPET_INFO.lock().period;
     if timer < period {
         timer = period;
     }
     let ioapic_irq_allowed = hpet_read_irq(channel);
     // trace!("HPET IRQ: 0b{:032b}", ioapic_irq_allowed);
-    let mut ioapic_irq = 0;
+    let mut ioapic_irq: u32 = 0;
     'search: for i in 0..32 {
         if ioapic_irq_allowed & (0x1 << i) != 0 {
             trace!("[HPET] Available IRQ: {}", i);
@@ -89,14 +90,13 @@ fn hpet_set_period_timer(channel: u8, mut timer: u32) {
     }
     let channel_offset = 0x20 * channel as u64;
     //TODO: 64 bit timer stuff probably only works when the HPET supports 64 bit mode lol
-    hpet_write_64(HPET_REG_TMR_CONCAP + channel_offset, ioapic_irq);
+    hpet_write_64(HPET_REG_TMR_CONCAP + channel_offset, ((ioapic_irq as u64) << 9) | (1<<2) | (1<<3) | (1<<6));
     hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, hpet_read_64(HPET_REG_MAIN_CNT_V) + timer as u64);
     hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, timer as u64);
 
     x86_64::instructions::interrupts::without_interrupts(|| {
         use crate::interrupts::ioapic;
-        use crate::interrupts::InterruptIndex;
-        // ioapic::ioapic_set_irq(ioapic_irq, 0, InterruptIndex::HPET_Timer);
+        unsafe { ioapic::ioapic_set_irq(ioapic_irq, 0, idt_index.as_u8()); }
     });
 }
 
@@ -122,7 +122,7 @@ pub fn initialize_hpet() {
     //Enable a periodic timer on channel 1
     //No need to check if its available, because
     //every system where HPET is supported has a minimum of 3 channels available
-    hpet_set_period_timer(0, 2e+15 as u32); //Replace 2e+15 by period in future, otherwise it only runs every 2 seconds
+    hpet_set_period_timer(0, 2e+15 as u32, InterruptIndex::HPET_Timer); //Replace 2e+15 by period in future, otherwise it only runs every 2 seconds
 
     let mut hpet_info = HPET_INFO.lock();
     *hpet_info = HPET_Information {

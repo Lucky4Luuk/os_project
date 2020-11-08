@@ -32,12 +32,26 @@ pub fn initialize_apic(id: u8, isos: Vec<InterruptSourceOverride>) {
 
         apic::enable_apic(id);
 
+        let mut timer_irq    = 0;
+        let mut keyboard_irq = 1;
+        let mut spurious_irq = 7;
+        let mut rtc_irq      = 8;
+
+        for iso in isos.iter() {
+            match iso.isa_source {
+                0 => timer_irq = iso.global_system_interrupt,
+                1 => keyboard_irq = iso.global_system_interrupt,
+                7 => spurious_irq = iso.global_system_interrupt,
+                8 => rtc_irq = iso.global_system_interrupt,
+                _ => {}, //Do nothing
+            }
+        }
+
         // Default IRQs
-        ioapic::ioapic_set_irq(0, id as u32, InterruptIndex::Timer.as_u8());
-        ioapic::ioapic_set_irq(1, id as u32, InterruptIndex::Keyboard.as_u8());
-        ioapic::ioapic_set_irq(7, id as u32, InterruptIndex::Spurious.as_u8());
-        ioapic::ioapic_set_irq(8, id as u32, InterruptIndex::RTC.as_u8());
-        trace!("yep");
+        ioapic::ioapic_set_irq(timer_irq, id as u32, InterruptIndex::Timer.as_u8());
+        ioapic::ioapic_set_irq(keyboard_irq, id as u32, InterruptIndex::Keyboard.as_u8());
+        ioapic::ioapic_set_irq(spurious_irq, id as u32, InterruptIndex::Spurious.as_u8());
+        ioapic::ioapic_set_irq(rtc_irq, id as u32, InterruptIndex::RTC.as_u8());
 
         //apic::apic_set_timer(id);
     }
@@ -49,6 +63,8 @@ pub enum InterruptIndex {
     Timer = PIC_OFFSET,
     Keyboard = PIC_OFFSET + 1,
 
+    HPET_Timer = PIC_OFFSET + 5,
+
     Spurious = PIC_OFFSET + 7,
     RTC = PIC_OFFSET + 8,
     ACPI = PIC_OFFSET + 9,
@@ -58,11 +74,11 @@ pub enum InterruptIndex {
 }
 
 impl InterruptIndex {
-    fn as_u8(self) -> u8 {
+    pub fn as_u8(self) -> u8 {
         self as u8
     }
 
-    fn as_usize(self) -> usize {
+    pub fn as_usize(self) -> usize {
         usize::from(self.as_u8())
     }
 }
@@ -88,12 +104,15 @@ lazy_static! {
         idt.invalid_tss.set_handler_fn(invalid_tss_handler);
         idt.segment_not_present.set_handler_fn(segment_not_present_handler);
 
-        // PIC interrupts
+        // Legacy IRQ interrupts
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
         idt[InterruptIndex::Spurious.as_usize()].set_handler_fn(spurious_interrupt_handler);
         idt[InterruptIndex::RTC.as_usize()].set_handler_fn(rtc_interrupt_handler);
         idt[InterruptIndex::ACPI.as_usize()].set_handler_fn(acpi_interrupt_handler);
+
+        // Hardcoded interrupts
+        idt[InterruptIndex::HPET_Timer.as_usize()].set_handler_fn(hpet_interrupt_handler);
 
         idt
     };
@@ -155,11 +174,11 @@ extern "x86-interrupt" fn segment_not_present_handler(_stack_frame: &mut Interru
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// PIC handlers
+// Legacy IRQ handlers
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Timer interrupt handler
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
-    print!(".");
+    // print!(".");
     unsafe { apic::apic_send_eoi(0); }
 }
 
@@ -178,6 +197,12 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: &mut Interrup
 
 extern "x86-interrupt" fn acpi_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
     println!("ACPI INTERRUPT!");
+
+    unsafe { apic::apic_send_eoi(0); }
+}
+
+extern "x86-interrupt" fn hpet_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
+    println!("HPET INTERRUPT!");
 
     unsafe { apic::apic_send_eoi(0); }
 }

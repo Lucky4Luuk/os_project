@@ -29,7 +29,7 @@ pub unsafe fn ioapic_write(id: u32, index: u32, value: u32) {
     memory_write_32(addr + 0x10, value);
 }
 
-pub fn get_io_apic_index(irq: u8) -> u32 {
+pub fn get_io_apic_index(irq: u32) -> u32 {
     let mut id = 0;
     for ioapic in IOAPICS.lock().iter() {
         if irq as u32 >= ioapic.global_system_interrupt_base {
@@ -42,7 +42,7 @@ pub fn get_io_apic_index(irq: u8) -> u32 {
 }
 
 /// Set an IRQ on the IOAPIC
-pub unsafe fn ioapic_set_irq(irq: u8, apic_id: u32, vector: u8) {
+pub unsafe fn ioapic_set_irq(irq: u32, apic_id: u32, vector: u8) {
     let ioapic_id = get_io_apic_index(irq);
 
     let low_index: u32 = 0x10 + (irq as u32)*2;

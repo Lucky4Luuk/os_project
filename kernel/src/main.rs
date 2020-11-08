@@ -51,7 +51,7 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use kernel::memory::BootInfoFrameAllocator;
     use kernel::vga_buffer::ModeEnum;
-    use vga::writers::{Text80x25, Graphics320x200x256, Graphics640x480x16, GraphicsWriter};
+    use vga::writers::{Text40x25, Graphics320x200x256, Graphics640x480x16, GraphicsWriter};
     use vga::colors::Color16;
     use x86_64::{structures::paging::MapperAllSizes, VirtAddr};
 
@@ -59,8 +59,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         Graphics640x480x16::new()
     ));
 
-    // kernel::vga_buffer::set_mode(ModeEnum::Text80x25(
-    //     Text80x25::new()
+    // kernel::vga_buffer::set_mode(ModeEnum::Text40x25(
+    //     Text40x25::new()
     // ));
 
     // match kernel::vga_buffer::WRITER.lock().mode {
@@ -69,7 +69,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     //             for y in 0..480 {
     //                 let mut color = Color16::Black;
     //                 if (x + y) % 7 == 0 { color = Color16::DarkGrey; }
-    //                 if (x + y) % 14 == 0 { color = Color16::Brown; }
+    //                 if (x + y) % 14 == 0 { color = Color16::Blue; }
     //                 m.set_pixel(x,y, color);
     //             }
     //         }
@@ -131,19 +131,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let acpi_controller = kernel::acpi_controller::AcpiController::new(phys_mem_offset.as_u64()).expect("Failed to get ACPI data!");
 
     debug!("Found ACPI data!");
-    // acpi_controller.debug_print();
 
-    // acpi_controller.get_cpu();
-    // trace!("APIC_ADDR: {:#08X}", acpi_controller.get_apic_addr());
-    // for ioapic in acpi_controller.get_io_apic().iter() {
-    //     trace!("IOAPIC_ADDR: {:#08X}", ioapic.address);
-    // }
     {
         let mut ioapics = kernel::interrupts::ioapic::IOAPICS.lock();
         *ioapics = acpi_controller.get_io_apic();
-        for iso in acpi_controller.get_io_apic_iso().iter() {
-            trace!("ISO: {:?}", iso);
-        }
     }
 
     let hpet_info = acpi_controller.get_hpet_info();
@@ -163,9 +154,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let res = kernel::hardware::rdtsc::read_rdtsc();
     debug!("[RTC] Sleep ended!");
     debug!("RDTSC value: {}", res);
-
-    // debug!("[APIC] Sleeping for 2 seconds");
-    // debug!("[APIC] Sleep ended!");
 
     hlt_loop();
 }
