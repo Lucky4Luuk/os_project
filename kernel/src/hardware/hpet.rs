@@ -67,17 +67,18 @@ fn hpet_read_64(addr: u64) -> u64 {
 }
 
 /// This function guarantees a timer that will trigger in `timer` amount or longer.
-fn hpet_set_oneshot_timer(channel: u8, mut timer: u32) {
+fn hpet_set_oneshot_timer(channel: u8, mut timer: u64) {
     let period = HPET_INFO.lock().period;
 
 }
 
 /// This function guarantees a timer that will trigger every `timer` amount or longer.
-fn hpet_set_period_timer(channel: u8, mut timer: u32, idt_index: InterruptIndex) {
-    let period = HPET_INFO.lock().period;
+fn hpet_set_period_timer(channel: u8, mut timer: u64, idt_index: InterruptIndex) {
+    let period = HPET_INFO.lock().period as u64;
     if timer < period {
         timer = period;
     }
+    trace!("TIMER: {}", timer);
     let ioapic_irq_allowed = hpet_read_irq(channel);
     // trace!("HPET IRQ: 0b{:032b}", ioapic_irq_allowed);
     let mut ioapic_irq: u32 = 0;
@@ -91,8 +92,8 @@ fn hpet_set_period_timer(channel: u8, mut timer: u32, idt_index: InterruptIndex)
     let channel_offset = 0x20 * channel as u64;
     //TODO: 64 bit timer stuff probably only works when the HPET supports 64 bit mode lol
     hpet_write_64(HPET_REG_TMR_CONCAP + channel_offset, ((ioapic_irq as u64) << 9) | (1<<2) | (1<<3) | (1<<6));
-    hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, hpet_read_64(HPET_REG_MAIN_CNT_V) + timer as u64);
-    hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, timer as u64);
+    hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, hpet_read_64(HPET_REG_MAIN_CNT_V) + timer);
+    hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, timer);
 
     x86_64::instructions::interrupts::without_interrupts(|| {
         use crate::interrupts::ioapic;
@@ -141,7 +142,7 @@ pub fn initialize_hpet() {
     //Enable a periodic timer on channel 1
     //No need to check if its available, because
     //every system where HPET is supported has a minimum of 3 channels available
-    hpet_set_period_timer(0, 2e+15 as u32, InterruptIndex::HPET_Timer); //Replace 2e+15 by period in future, otherwise it only runs every 2 seconds
+    hpet_set_period_timer(0, 2e+15 as u64, InterruptIndex::HPET_Timer); //Replace 2e+15 by period in future, otherwise it only runs every 2 seconds
 
     //Enable the main counter
     unsafe {
