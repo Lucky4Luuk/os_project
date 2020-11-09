@@ -63,7 +63,7 @@ pub enum InterruptIndex {
     Timer = PIC_OFFSET,
     Keyboard = PIC_OFFSET + 1,
 
-    HPET_Timer = PIC_OFFSET + 5,
+    HPET_Timer = PIC_OFFSET + 2,
 
     Spurious = PIC_OFFSET + 7,
     RTC = PIC_OFFSET + 8,

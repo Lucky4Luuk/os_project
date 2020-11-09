@@ -119,20 +119,33 @@ pub fn initialize_hpet() {
     let legacy_mapping = ((0x1<<15) & cap_field) != 0; //Legacy mapping available
     trace!("HPET legacy mapping: {}", legacy_mapping);
 
+    {
+        let mut hpet_info = HPET_INFO.lock();
+        *hpet_info = HPET_Information {
+            supports_64_bit: bit64_capable,
+            counters: counters,
+            supports_legacy_mapping: legacy_mapping,
+
+            vendor_id: vendor_id,
+
+            freq: freq,
+            period: period,
+        };
+    }
+
+    unsafe {
+        memory_write_64(HPET_REG_GEN_CONFIG, memory_read_64(HPET_REG_GEN_CONFIG) & !(0b11 as u64));
+        debug!("0b{:064b}", memory_read_64(HPET_REG_GEN_CONFIG));
+    }
+
     //Enable a periodic timer on channel 1
     //No need to check if its available, because
     //every system where HPET is supported has a minimum of 3 channels available
     hpet_set_period_timer(0, 2e+15 as u32, InterruptIndex::HPET_Timer); //Replace 2e+15 by period in future, otherwise it only runs every 2 seconds
 
-    let mut hpet_info = HPET_INFO.lock();
-    *hpet_info = HPET_Information {
-        supports_64_bit: bit64_capable,
-        counters: counters,
-        supports_legacy_mapping: legacy_mapping,
-
-        vendor_id: vendor_id,
-
-        freq: freq,
-        period: period,
+    //Enable the main counter
+    unsafe {
+        memory_write_64(HPET_REG_GEN_CONFIG, memory_read_64(HPET_REG_GEN_CONFIG) | (0b1 as u64));
+        debug!("0b{:064b}", memory_read_64(HPET_REG_GEN_CONFIG));
     }
 }

@@ -137,16 +137,14 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         *ioapics = acpi_controller.get_io_apic();
     }
 
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        kernel::interrupts::initialize_apic(0, acpi_controller.get_io_apic_iso());
+    });
+
     let hpet_info = acpi_controller.get_hpet_info();
     trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
     kernel::hardware::hpet::HPET_BASE_ADDR.store(hpet_info.base_address as u64, Ordering::Relaxed);
     kernel::hardware::hpet::initialize_hpet();
-
-    x86_64::instructions::interrupts::without_interrupts(|| {
-        debug!("Broken?");
-        kernel::interrupts::initialize_apic(0, acpi_controller.get_io_apic_iso());
-        debug!("Broken2?");
-    });
 
     debug!("[RTC] Sleeping for 2 seconds");
     debug!("RDTSC value: {}", kernel::hardware::rdtsc::read_rdtsc());
