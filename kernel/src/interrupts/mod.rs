@@ -178,7 +178,7 @@ extern "x86-interrupt" fn segment_not_present_handler(_stack_frame: &mut Interru
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Timer interrupt handler
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
-    // print!(".");
+    print!(".");
     unsafe { apic::apic_send_eoi(0); }
 }
 

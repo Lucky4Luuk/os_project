@@ -78,9 +78,13 @@ fn hpet_set_period_timer(channel: u8, mut timer: u64, idt_index: InterruptIndex)
     if timer < period {
         timer = period;
     }
+    let channel_offset = 0x20 * channel as u64;
     trace!("TIMER: {}", timer);
+    if (hpet_read_64(HPET_REG_TMR_CONCAP + channel_offset) & (1<<4)) == 0 {
+        panic!("Cannot enable periodic mode on a timer that does not support periodic mode!");
+    }
     let ioapic_irq_allowed = hpet_read_irq(channel);
-    // trace!("HPET IRQ: 0b{:032b}", ioapic_irq_allowed);
+    trace!("HPET IRQ: 0b{:032b}", ioapic_irq_allowed);
     let mut ioapic_irq: u32 = 0;
     'search: for i in 0..32 {
         if ioapic_irq_allowed & (0x1 << i) != 0 {
@@ -89,17 +93,13 @@ fn hpet_set_period_timer(channel: u8, mut timer: u64, idt_index: InterruptIndex)
             break 'search;
         }
     }
-    let channel_offset = 0x20 * channel as u64;
 
-    //Disable main counter temporarily
-    unsafe { hpet_write_64(HPET_REG_GEN_CONFIG, hpet_read_64(HPET_REG_GEN_CONFIG) & !(0b1 as u64)); }
+    ioapic_irq += 9;
 
     //TODO: 64 bit timer stuff probably only works when the HPET supports 64 bit mode lol
     hpet_write_64(HPET_REG_TMR_CONCAP + channel_offset, ((ioapic_irq as u64) << 9) | (1<<2) | (1<<3) | (1<<6));
     hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, hpet_read_64(HPET_REG_MAIN_CNT_V) + timer);
     hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, timer);
-    //Re-enable main counter again
-    unsafe { hpet_write_64(HPET_REG_GEN_CONFIG, hpet_read_64(HPET_REG_GEN_CONFIG) & (0b1 as u64)); }
 
     use crate::interrupts::ioapic;
     unsafe { ioapic::ioapic_set_irq(ioapic_irq, 0, idt_index.as_u8()); }
@@ -139,6 +139,7 @@ pub fn initialize_hpet() {
     }
 
     unsafe {
+        debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
         hpet_write_64(HPET_REG_GEN_CONFIG, hpet_read_64(HPET_REG_GEN_CONFIG) & !(0b11 as u64));
         debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
     }
@@ -146,7 +147,7 @@ pub fn initialize_hpet() {
     //Enable a periodic timer on channel 1
     //No need to check if its available, because
     //every system where HPET is supported has a minimum of 3 channels available
-    hpet_set_period_timer(0, 2e+15 as u64, InterruptIndex::HPET_Timer); //Replace 2e+15 by period in future, otherwise it only runs every 2 seconds
+    hpet_set_period_timer(0, period as u64, InterruptIndex::HPET_Timer); //Replace 2e+15 by period in future, otherwise it only runs every 2 seconds
 
     //Enable the main counter
     unsafe {
