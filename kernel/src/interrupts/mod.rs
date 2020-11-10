@@ -203,6 +203,7 @@ extern "x86-interrupt" fn acpi_interrupt_handler(_stack_frame: &mut InterruptSta
 
 extern "x86-interrupt" fn hpet_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
     // println!("HPET INTERRUPT!");
+    print!(";");
 
     unsafe { apic::apic_send_eoi(0); }
 }

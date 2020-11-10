@@ -146,12 +146,12 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     kernel::hardware::hpet::HPET_BASE_ADDR.store(hpet_info.base_address as u64, Ordering::Relaxed);
     kernel::hardware::hpet::initialize_hpet();
 
-    debug!("[RTC] Sleeping for 2 seconds");
-    debug!("RDTSC value: {}", kernel::hardware::rdtsc::read_rdtsc());
-    kernel::hardware::rtc::sleep(2.0); //Sleep for 2 seconds
-    let res = kernel::hardware::rdtsc::read_rdtsc();
-    debug!("[RTC] Sleep ended!");
-    debug!("RDTSC value: {}", res);
+    // debug!("[RTC] Sleeping for 2 seconds");
+    // debug!("RDTSC value: {}", kernel::hardware::rdtsc::read_rdtsc());
+    // kernel::hardware::rtc::sleep(2.0); //Sleep for 2 seconds
+    // let res = kernel::hardware::rdtsc::read_rdtsc();
+    // debug!("[RTC] Sleep ended!");
+    // debug!("RDTSC value: {}", res);
 
     hlt_loop();
 }

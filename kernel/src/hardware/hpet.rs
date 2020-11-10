@@ -32,13 +32,13 @@ pub struct HPET_Information {
 
 fn hpet_read_period() -> u32 {
     unsafe {
-        (memory_read_64(HPET_BASE_ADDR.load(Ordering::Relaxed) + HPET_REG_GEN_CAP_ID) >> 32) as u32
+        (hpet_read_64(HPET_REG_GEN_CAP_ID) >> 32) as u32
     }
 }
 
 fn hpet_read_irq(channel: u8) -> u32 {
     unsafe {
-        (memory_read_64(HPET_BASE_ADDR.load(Ordering::Relaxed) + HPET_REG_TMR_CONCAP + 0x20 * (channel as u64)) >> 32) as u32
+        (hpet_read_64(HPET_REG_TMR_CONCAP + 0x20 * (channel as u64)) >> 32) as u32
     }
 }
 
@@ -90,15 +90,19 @@ fn hpet_set_period_timer(channel: u8, mut timer: u64, idt_index: InterruptIndex)
         }
     }
     let channel_offset = 0x20 * channel as u64;
+
+    //Disable main counter temporarily
+    unsafe { hpet_write_64(HPET_REG_GEN_CONFIG, hpet_read_64(HPET_REG_GEN_CONFIG) & !(0b1 as u64)); }
+
     //TODO: 64 bit timer stuff probably only works when the HPET supports 64 bit mode lol
     hpet_write_64(HPET_REG_TMR_CONCAP + channel_offset, ((ioapic_irq as u64) << 9) | (1<<2) | (1<<3) | (1<<6));
     hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, hpet_read_64(HPET_REG_MAIN_CNT_V) + timer);
     hpet_write_64(HPET_REG_TMR_COMP_V + channel_offset, timer);
+    //Re-enable main counter again
+    unsafe { hpet_write_64(HPET_REG_GEN_CONFIG, hpet_read_64(HPET_REG_GEN_CONFIG) & (0b1 as u64)); }
 
-    x86_64::instructions::interrupts::without_interrupts(|| {
-        use crate::interrupts::ioapic;
-        unsafe { ioapic::ioapic_set_irq(ioapic_irq, 0, idt_index.as_u8()); }
-    });
+    use crate::interrupts::ioapic;
+    unsafe { ioapic::ioapic_set_irq(ioapic_irq, 0, idt_index.as_u8()); }
 }
 
 /// Collects a bunch of information of HPET and enables a periodic timer on the first
@@ -135,8 +139,8 @@ pub fn initialize_hpet() {
     }
 
     unsafe {
-        memory_write_64(HPET_REG_GEN_CONFIG, memory_read_64(HPET_REG_GEN_CONFIG) & !(0b11 as u64));
-        debug!("0b{:064b}", memory_read_64(HPET_REG_GEN_CONFIG));
+        hpet_write_64(HPET_REG_GEN_CONFIG, hpet_read_64(HPET_REG_GEN_CONFIG) & !(0b11 as u64));
+        debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
     }
 
     //Enable a periodic timer on channel 1
@@ -146,7 +150,7 @@ pub fn initialize_hpet() {
 
     //Enable the main counter
     unsafe {
-        memory_write_64(HPET_REG_GEN_CONFIG, memory_read_64(HPET_REG_GEN_CONFIG) | (0b1 as u64));
-        debug!("0b{:064b}", memory_read_64(HPET_REG_GEN_CONFIG));
+        hpet_write_64(HPET_REG_GEN_CONFIG, hpet_read_64(HPET_REG_GEN_CONFIG) | (0b1 as u64));
+        debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
     }
 }
