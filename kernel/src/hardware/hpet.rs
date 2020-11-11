@@ -74,10 +74,10 @@ fn hpet_set_oneshot_timer(channel: u8, mut timer: u64) {
 
 /// This function guarantees a timer that will trigger every `timer` amount or longer.
 fn hpet_set_period_timer(channel: u8, mut timer: u64, idt_index: InterruptIndex) {
-    let period = HPET_INFO.lock().period as u64;
-    if timer < period {
-        timer = period;
-    }
+    // let period = HPET_INFO.lock().period as u64;
+    // if timer < period {
+    //     timer = period;
+    // }
     let channel_offset = 0x20 * channel as u64;
     trace!("TIMER: {}", timer);
     if (hpet_read_64(HPET_REG_TMR_CONCAP + channel_offset) & (1<<4)) == 0 {
@@ -94,6 +94,7 @@ fn hpet_set_period_timer(channel: u8, mut timer: u64, idt_index: InterruptIndex)
         }
     }
 
+    //Only needed for QEMU
     ioapic_irq += 9;
 
     //TODO: 64 bit timer stuff probably only works when the HPET supports 64 bit mode lol
@@ -147,7 +148,8 @@ pub fn initialize_hpet() {
     //Enable a periodic timer on channel 1
     //No need to check if its available, because
     //every system where HPET is supported has a minimum of 3 channels available
-    hpet_set_period_timer(0, period as u64, InterruptIndex::HPET_Timer); //Replace 2e+15 by period in future, otherwise it only runs every 2 seconds
+    let irq_freq = 1 as u64; //irq_freq of 2 means 2hz aka twice a second
+    hpet_set_period_timer(0, freq / irq_freq, InterruptIndex::HPET_Timer);
 
     //Enable the main counter
     unsafe {
