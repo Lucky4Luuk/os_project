@@ -97,6 +97,38 @@ pub fn alloc_stack(
     })
 }
 
+pub fn alloc_user_stack(
+    size_in_pages: u64,
+    mapper: &mut impl Mapper<Size4KiB>,
+    frame_allocator: &mut impl FrameAllocator<Size4KiB>,
+) -> Result<StackBounds, mapper::MapToError<Size4KiB>> {
+    use core::sync::atomic::{AtomicU64, Ordering};
+    use x86_64::structures::paging::PageTableFlags as Flags;
+
+    static STACK_ALLOC_NEXT: AtomicU64 = AtomicU64::new(0x_FFFF_5555_0000);
+
+    let guard_page_start = STACK_ALLOC_NEXT.fetch_add(
+        (size_in_pages + 1) * Page::<Size4KiB>::SIZE,
+        Ordering::SeqCst,
+    );
+    let guard_page = Page::from_start_address(VirtAddr::new(guard_page_start))
+        .expect("`STACK_ALLOC_NEXT` not page aligned");
+
+    let stack_start = guard_page + 1;
+    let stack_end = stack_start + size_in_pages;
+    let flags = Flags::PRESENT | Flags::WRITABLE | Flags::USER_ACCESSIBLE;
+    for page in Page::range(stack_start, stack_end) {
+        let frame = frame_allocator
+            .allocate_frame()
+            .ok_or(mapper::MapToError::FrameAllocationFailed)?;
+        unsafe { mapper.map_to(page, frame, flags, frame_allocator)?.flush(); }
+    }
+    Ok(StackBounds {
+        start: stack_start.start_address(),
+        end: stack_end.start_address(),
+    })
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //Page allocation
 ///////////////////////////////////////////////////////////////////////////////////////////////////

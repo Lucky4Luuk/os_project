@@ -24,6 +24,8 @@ use kernel::{
     hlt_loop,
 
     kernel_logger,
+
+    multitasking::{self, thread::Thread, with_scheduler},
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -98,11 +100,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         println!("Mapper and frame allocator created!");
     }
 
-    let mut mapper = kernel::memory::MAPPER.lock();
-    let mut frame_allocator = kernel::memory::FRAME_ALLOCATOR.lock();
+    {
+        let mut mapper = kernel::memory::MAPPER.lock();
+        let mut frame_allocator = kernel::memory::FRAME_ALLOCATOR.lock();
+        kernel::allocator::init_heap(mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).expect("Heap initialization failed!");
+    }
 
     kernel::init();
-    kernel::allocator::init_heap(mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).expect("Heap initialization failed!");
 
     let cpuid = CpuId::new();
     match cpuid.get_vendor_info() {
@@ -118,6 +122,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         None => warn!("Failed to find the CPU's feature info!"),
     }
 
+    /*
     match cpuid.get_tsc_info() {
         Some(tsc_info) => {
             match tsc_info.tsc_frequency() {
@@ -127,6 +132,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         },
         None => warn!("Failed to find the CPU's TSC info!"),
     }
+    */
 
     let acpi_controller = kernel::acpi_controller::AcpiController::new(phys_mem_offset.as_u64()).expect("Failed to get ACPI data!");
 
@@ -142,7 +148,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     });
 
     let hpet_info = acpi_controller.get_hpet_info();
-    trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
+    // trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
     kernel::hardware::hpet::HPET_BASE_ADDR.store(hpet_info.base_address as u64, Ordering::Relaxed);
     kernel::hardware::hpet::initialize_hpet();
 
@@ -153,5 +159,49 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // debug!("[RTC] Sleep ended!");
     // debug!("RDTSC value: {}", res);
 
+    // hlt_loop();
+
+    //Kernel space threads
+    {
+        let mut mapper = kernel::memory::MAPPER.lock();
+        let mut frame_allocator = kernel::memory::FRAME_ALLOCATOR.lock();
+        
+        let idle_thread = Thread::create(idle_thread, 2, mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).unwrap();
+        with_scheduler(|s| s.set_idle_thread(idle_thread));
+    }
+
+    //Userspace
+    kernel::userspace::init();
+    // thread_entry();
+
     hlt_loop();
+}
+
+fn idle_thread() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+        multitasking::yield_now();
+    }
+}
+
+fn test_thread() -> ! {
+    loop {
+        let thread_id = with_scheduler(|s| s.current_thread_id()).as_u64();
+        // if (thread_id % 2) > 0 {
+        //     print!("A");
+        // } else {
+        //     print!("B");
+        // }
+        multitasking::yield_now(); //Manually yield for performance
+        // x86_64::instructions::hlt(); //Alternatively, run hlt so interrupts still work
+    }
+}
+
+fn thread_entry() -> ! {
+    let thread_id = with_scheduler(|s| s.current_thread_id()).as_u64();
+    for _ in 0..=thread_id {
+        print!("{}", thread_id);
+        x86_64::instructions::hlt();
+    }
+    multitasking::exit_thread();
 }

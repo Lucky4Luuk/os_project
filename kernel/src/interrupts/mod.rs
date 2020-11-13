@@ -128,7 +128,7 @@ pub fn init_idt() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Breakpoint handler
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
+    panic!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
     // unsafe { apic::send_apic_eoi(0); }
 }
 
@@ -154,18 +154,21 @@ extern "x86-interrupt" fn divide_error_handler(_stack_frame: &mut InterruptStack
 }
 
 /// General Protection Fault
-extern "x86-interrupt" fn general_protection_fault_handler(_stack_frame: &mut InterruptStackFrame, error_code: u64) {
-    println!("General Protection Fault!");
+extern "x86-interrupt" fn general_protection_fault_handler(stack_frame: &mut InterruptStackFrame, error_code: u64) {
+    println!("EXCEPTION: GENERAL PROTECTION FAULT");
+    println!("Error Code: {:?}", error_code);
+    println!("{:#?}", stack_frame);
+    hlt_loop();
 }
 
 /// Stack segment fault
 extern "x86-interrupt" fn stack_segment_fault_handler(_stack_frame: &mut InterruptStackFrame, error_code: u64) {
-    println!("Stack segment fault!");
+    panic!("Stack segment fault!");
 }
 
 /// Invalid TSS
 extern "x86-interrupt" fn invalid_tss_handler(_stack_frame: &mut InterruptStackFrame, error_code: u64) {
-    println!("Invalid TSS!");
+    panic!("Invalid TSS!");
 }
 
 /// Segment not present
@@ -178,7 +181,7 @@ extern "x86-interrupt" fn segment_not_present_handler(_stack_frame: &mut Interru
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Timer interrupt handler
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
-    print!(".");
+    // print!(".");
     unsafe { apic::apic_send_eoi(0); }
 }
 
@@ -203,9 +206,10 @@ extern "x86-interrupt" fn acpi_interrupt_handler(_stack_frame: &mut InterruptSta
 
 extern "x86-interrupt" fn hpet_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
     // println!("HPET INTERRUPT!");
-    print!(";");
+    // print!(";");
 
     unsafe { apic::apic_send_eoi(0); }
+    crate::multitasking::yield_now();
 }
 
 extern "x86-interrupt" fn rtc_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {

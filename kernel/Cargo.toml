@@ -56,6 +56,11 @@ panic = "abort"
 [profile.release]
 panic = "abort"
 
+#Bootloader stuff
+[package.metadata.bootloader]
+kernel-stack-address = "0xFFFFFF8000000000"
+kernel-stack-size = 512 #Default value = 512
+
 # Qemu/running stuff
 [package.metadata.bootimage]
 test-args = [
@@ -73,6 +78,10 @@ run-args = [
     # "-machine", "kernel-irqchip=on",
     "-cpu", "qemu64",
     # "-cpu", "host",
+    # "-d", "int",
+    # "-d", "cpu-reset",
+    # "-S",
+    # "-no-reboot", "-no-shutdown",
 
     "-smp", "4",
 ]

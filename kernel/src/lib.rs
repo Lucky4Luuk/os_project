@@ -40,6 +40,8 @@ pub mod interrupts;
 pub use interrupts::apic;
 pub mod hardware;
 pub mod acpi_controller;
+pub mod multitasking;
+pub mod userspace;
 
 pub fn hlt_loop() -> ! {
     loop {
@@ -49,6 +51,16 @@ pub fn hlt_loop() -> ! {
 
 /// Handles initialization of the kernel. For now, this only initializes the GDT and the interrupt IDT.
 pub fn init() {
+    //Enable syscall extensions on x86_64
+    {
+        let mut efer = x86_64::registers::model_specific::Efer::read();
+        efer |= x86_64::registers::control::EferFlags::NO_EXECUTE_ENABLE;
+        efer |= x86_64::registers::control::EferFlags::SYSTEM_CALL_EXTENSIONS;
+        unsafe {
+            x86_64::registers::model_specific::Efer::write(efer);
+        }
+    }
+
     gdt::init();
     interrupts::init_idt();
 }

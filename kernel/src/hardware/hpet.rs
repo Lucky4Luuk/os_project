@@ -148,7 +148,7 @@ pub fn initialize_hpet() {
     //Enable a periodic timer on channel 1
     //No need to check if its available, because
     //every system where HPET is supported has a minimum of 3 channels available
-    let irq_freq = 1 as u64; //irq_freq of 2 means 2hz aka twice a second
+    let irq_freq = 256 as u64; //irq_freq of 2 means 2hz aka twice a second
     hpet_set_period_timer(0, freq / irq_freq, InterruptIndex::HPET_Timer);
 
     //Enable the main counter
