@@ -29,23 +29,6 @@ use kernel::{
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Error handling
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/// This function is called on panic.
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
-    loop {}
-}
-
-#[cfg(test)]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    kernel::test_panic_handler(info)
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main function
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 entry_point!(kernel_main);
@@ -106,6 +89,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         kernel::allocator::init_heap(mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).expect("Heap initialization failed!");
     }
 
+    // panic!("Test panic");
+
     kernel::init();
 
     let cpuid = CpuId::new();
@@ -165,7 +150,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     {
         let mut mapper = kernel::memory::MAPPER.lock();
         let mut frame_allocator = kernel::memory::FRAME_ALLOCATOR.lock();
-        
+
         let idle_thread = Thread::create(idle_thread, 2, mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).unwrap();
         with_scheduler(|s| s.set_idle_thread(idle_thread));
     }

@@ -141,11 +141,12 @@ extern "x86-interrupt" fn double_fault_handler(stack_frame: &mut InterruptStackF
 extern "x86-interrupt" fn page_fault_handler(stack_frame: &mut InterruptStackFrame, error_code: PageFaultErrorCode) {
     use x86_64::registers::control::Cr2;
 
-    println!("EXCEPTION: PAGE FAULT");
-    println!("Accessed Address: {:?}", Cr2::read());
-    println!("Error Code: {:?}", error_code);
-    println!("{:#?}", stack_frame);
-    hlt_loop();
+    // println!("EXCEPTION: PAGE FAULT");
+    // println!("Accessed Address: {:?}", Cr2::read());
+    // println!("Error Code: {:?}", error_code);
+    // println!("{:#?}", stack_frame);
+    // hlt_loop();
+    panic!("EXCEPTION: PAGE FAULT\nAccessed Address: {:?}\nError Code: {:?}\n{:#?}", Cr2::read(), error_code, stack_frame);
 }
 
 /// Divide error
@@ -155,10 +156,11 @@ extern "x86-interrupt" fn divide_error_handler(_stack_frame: &mut InterruptStack
 
 /// General Protection Fault
 extern "x86-interrupt" fn general_protection_fault_handler(stack_frame: &mut InterruptStackFrame, error_code: u64) {
-    println!("EXCEPTION: GENERAL PROTECTION FAULT");
-    println!("Error Code: {:?}", error_code);
-    println!("{:#?}", stack_frame);
-    hlt_loop();
+    // println!("EXCEPTION: GENERAL PROTECTION FAULT");
+    // println!("Error Code: {:?}", error_code);
+    // println!("{:#?}", stack_frame);
+    // hlt_loop();
+    panic!("EXCEPTION: GENERAL PROTECTION FAULT\nError Code: {:?}\n{:#?}", error_code, stack_frame);
 }
 
 /// Stack segment fault
@@ -172,8 +174,8 @@ extern "x86-interrupt" fn invalid_tss_handler(_stack_frame: &mut InterruptStackF
 }
 
 /// Segment not present
-extern "x86-interrupt" fn segment_not_present_handler(_stack_frame: &mut InterruptStackFrame, error_code: u64) {
-    panic!("Segment not present!");
+extern "x86-interrupt" fn segment_not_present_handler(stack_frame: &mut InterruptStackFrame, error_code: u64) {
+    panic!("EXCEPTION: SEGMENT NOT PRESENT\nError Code: {:?}\n{:?}", error_code, stack_frame);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

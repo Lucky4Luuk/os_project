@@ -82,18 +82,20 @@ pub fn init() {
 
     // trace!("RPL: {:?}", GDT.1.user_code_selector.rpl()); //Prints "3", which is correct
 
+    unsafe {
+        SELECTORS = GDT.1;
+    }
+
     GDT.0.load();
+
     unsafe {
         set_cs(GDT.1.kernel_code_selector);
         load_ss(GDT.1.kernel_data_selector);
         trace!("Kernel segments loaded!");
         load_tss(GDT.1.tss_selector);
         trace!("TSS loaded!");
-
-        SELECTORS = GDT.1;
     }
 
-    //It doesn't even get to this point if the `set_cs(user_code_sel)` line is uncommented
     trace!("GDT loaded!");
 }
 
@@ -108,10 +110,10 @@ pub fn setup_usermode() {
         .unwrap();
     }
 
-    let syscall_entry = syscall_entry as u64;
+    let syscall_entry = crate::userspace::init_userspace as u64;
     x86_64::registers::model_specific::LStar::write(VirtAddr::new(syscall_entry));
 }
 
-pub extern "C" fn syscall_entry() {
-    info!("Syscall Entry!");
-}
+// pub extern "C" fn syscall_entry() {
+//     info!("Syscall Entry!");
+// }

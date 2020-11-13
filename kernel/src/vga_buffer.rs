@@ -16,6 +16,9 @@ lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         mode: ModeEnum::NoMode,
         cursor_pos: (0,0),
+
+        bg_color: Color16::Black,
+        fg_color: Color16::Pink,
     });
 }
 
@@ -48,6 +51,47 @@ pub fn print_colored(string: &str, colour_code: Color16) {
     });
 }
 
+use core::panic::PanicInfo;
+pub fn kernel_panic(error: &PanicInfo) {
+    set_mode(ModeEnum::Text80x25(
+        vga::writers::Text80x25::new()
+    ));
+    set_text_color(Color16::White, Color16::Black);
+    clear_screen();
+    // print!("                                        "); //40 spaces
+    // print!("                                                                                "); //80 spaces
+    println!("");
+    print_colored("------/!\\--------------------------------------------------------------/!\\------", Color16::Red);
+    println!("Don't worry, your important data was saved! I hope...");
+    print_colored("--------------------------------------------------------------------------------", Color16::Red);
+    println!("");
+    println!("{}", error);
+}
+
+pub fn clear_screen() {
+    use x86_64::instructions::interrupts;
+
+    interrupts::without_interrupts(|| {
+        WRITER.lock().clear_screen();
+    });
+}
+
+pub fn set_text_color(fg_color: Color16, bg_color: Color16) {
+    use x86_64::instructions::interrupts;
+
+    interrupts::without_interrupts(|| {
+        WRITER.lock().set_text_color(fg_color, bg_color);
+    });
+}
+
+pub fn set_cursor_enabled(enabled: bool) {
+    use x86_64::instructions::interrupts;
+
+    interrupts::without_interrupts(|| {
+        WRITER.lock().set_cursor_enabled(enabled);
+    });
+}
+
 pub fn set_mode(mode: ModeEnum) {
     use x86_64::instructions::interrupts;
 
@@ -72,6 +116,8 @@ pub enum ModeEnum {
 pub struct Writer {
     pub mode: ModeEnum,
     cursor_pos: (usize, usize),
+    bg_color: Color16,
+    fg_color: Color16,
 }
 
 impl Writer {
@@ -89,23 +135,44 @@ impl Writer {
         }
     }
 
-    fn new_line(&mut self) {
+    pub fn clear_screen(&mut self) {
+        match self.mode {
+            ModeEnum::Text40x25(m) => m.clear_screen(),
+            ModeEnum::Text40x50(m) => m.clear_screen(),
+            ModeEnum::Text80x25(m) => m.clear_screen(),
 
+            ModeEnum::Graphics320x200x256(m) => m.clear_screen(0),
+            ModeEnum::Graphics320x240x256(m) => m.clear_screen(0),
+            ModeEnum::Graphics640x480x16(m) => m.clear_screen(self.bg_color),
+            _ => {},
+        }
+        self.cursor_pos = (0,0);
     }
 
-    fn clear_row(&mut self, row: usize) {
+    pub fn set_text_color(&mut self, fg_color: Color16, bg_color: Color16) {
+        self.fg_color = fg_color;
+        self.bg_color = bg_color;
+    }
 
+    pub fn set_cursor_enabled(&mut self, enabled: bool) {
+        match self.mode {
+            ModeEnum::Text40x25(m) => if enabled { m.enable_cursor(); } else { m.disable_cursor(); },
+            ModeEnum::Text40x50(m) => if enabled { m.enable_cursor(); } else { m.disable_cursor(); },
+            ModeEnum::Text80x25(m) => if enabled { m.enable_cursor(); } else { m.disable_cursor(); },
+
+            _ => {},
+        }
     }
 
     pub fn write_string(&mut self, s: &str) {
-        self.write_string_coloured(s, Color16::Pink);
+        self.write_string_coloured(s, self.fg_color);
     }
 
     pub fn write_string_coloured(&mut self, s: &str, fg_color: Color16) {
         match self.mode {
             //Text modes
             ModeEnum::Text40x25(m) => {
-                let color = TextModeColor::new(fg_color, Color16::Black);
+                let color = TextModeColor::new(fg_color, self.bg_color);
                 let width = 40;
                 let height = 25;
                 for byte in s.bytes() {
@@ -133,7 +200,7 @@ impl Writer {
                 }
             },
             ModeEnum::Text40x50(m) => {
-                let color = TextModeColor::new(fg_color, Color16::Black);
+                let color = TextModeColor::new(fg_color, self.bg_color);
                 let width = 40;
                 let height = 50;
                 for byte in s.bytes() {
@@ -161,7 +228,7 @@ impl Writer {
                 }
             },
             ModeEnum::Text80x25(m) => {
-                let color = TextModeColor::new(fg_color, Color16::Black);
+                let color = TextModeColor::new(fg_color, self.bg_color);
                 let width = 80;
                 let height = 25;
                 for byte in s.bytes() {
@@ -219,7 +286,6 @@ impl Writer {
                 }
             },
             ModeEnum::Graphics640x480x16(m) => {
-                // let color = TextModeColor::new(fg_color, Color16::Black);
                 let char_width = 8;
                 let char_height = 12; //???
                 let width = 640 / char_width;
@@ -232,7 +298,7 @@ impl Writer {
                         },
                         _ => {
                             if self.cursor_pos.1 >= height {
-                                m.clear_screen(Color16::Black);
+                                m.clear_screen(self.bg_color);
                                 self.cursor_pos.0 = 0;
                                 self.cursor_pos.1 = 0;
                             }

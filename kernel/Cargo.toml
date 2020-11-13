@@ -79,8 +79,8 @@ run-args = [
     "-cpu", "qemu64",
     # "-cpu", "host",
     # "-d", "int",
-    # "-d", "cpu-reset",
-    # "-S",
+    # "-d", "cpu_reset",
+    # "-D", "./log.txt",
     # "-no-reboot", "-no-shutdown",
 
     "-smp", "4",
