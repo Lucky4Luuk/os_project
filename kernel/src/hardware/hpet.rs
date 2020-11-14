@@ -111,19 +111,19 @@ fn hpet_set_period_timer(channel: u8, mut timer: u64, idt_index: InterruptIndex)
 pub fn initialize_hpet() {
     let period = hpet_read_period();
     let freq: u64 = 1_000_000_000_000_000 / (period as u64);
-    trace!("HPET freq: {}", freq);
+    // trace!("HPET freq: {}", freq);
 
     //Check general capabilities of HPET
     let cap_field = unsafe { memory_read_32(HPET_BASE_ADDR.load(Ordering::Relaxed) + HPET_REG_GEN_CAP_ID) };
-    trace!("HPET cap field: 0b{:032b}", cap_field);
+    // trace!("HPET cap field: 0b{:032b}", cap_field);
     let bit64_capable = ((0x1<<13) & cap_field) != 0; //64 bit main counter support
-    trace!("HPET 64 bit capable: {}", bit64_capable);
+    // trace!("HPET 64 bit capable: {}", bit64_capable);
     let vendor_id = (cap_field >> 16) as u16; //Should report 0x8086
-    trace!("HPET vendor ID: {:#04X}", vendor_id);
+    // trace!("HPET vendor ID: {:#04X}", vendor_id);
     let counters = ((cap_field >> 8) & 0b11111) as u8 + 1;
-    trace!("HPET counters: {}", counters);
+    // trace!("HPET counters: {}", counters);
     let legacy_mapping = ((0x1<<15) & cap_field) != 0; //Legacy mapping available
-    trace!("HPET legacy mapping: {}", legacy_mapping);
+    // trace!("HPET legacy mapping: {}", legacy_mapping);
 
     {
         let mut hpet_info = HPET_INFO.lock();
@@ -140,9 +140,9 @@ pub fn initialize_hpet() {
     }
 
     unsafe {
-        debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
+        // debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
         hpet_write_64(HPET_REG_GEN_CONFIG, hpet_read_64(HPET_REG_GEN_CONFIG) & !(0b11 as u64));
-        debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
+        // debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
     }
 
     //Enable a periodic timer on channel 1
@@ -154,6 +154,6 @@ pub fn initialize_hpet() {
     //Enable the main counter
     unsafe {
         hpet_write_64(HPET_REG_GEN_CONFIG, hpet_read_64(HPET_REG_GEN_CONFIG) | (0b1 as u64));
-        debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
+        // debug!("0b{:064b}", hpet_read_64(HPET_REG_GEN_CONFIG));
     }
 }

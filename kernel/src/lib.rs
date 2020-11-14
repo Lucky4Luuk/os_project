@@ -42,6 +42,7 @@ pub mod hardware;
 pub mod acpi_controller;
 pub mod multitasking;
 pub mod userspace;
+pub mod custom_elfloader;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Error handling
@@ -50,7 +51,8 @@ use core::panic::PanicInfo;
 /// This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    crate::vga_buffer::kernel_panic(info);
+    // crate::vga_buffer::kernel_panic(info);
+    println!("{}", info);
     loop {}
 }
 

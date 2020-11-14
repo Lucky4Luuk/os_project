@@ -146,7 +146,7 @@ extern "x86-interrupt" fn page_fault_handler(stack_frame: &mut InterruptStackFra
     // println!("Error Code: {:?}", error_code);
     // println!("{:#?}", stack_frame);
     // hlt_loop();
-    panic!("EXCEPTION: PAGE FAULT\nAccessed Address: {:?}\nError Code: {:?}\n{:#?}", Cr2::read(), error_code, stack_frame);
+    panic!("EXCEPTION: PAGE FAULT\nAccessed Address: {:?}\nError Code: {:?}\nRaw Error Code: 0b{:05b}\n{:#?}", Cr2::read(), error_code, error_code.bits(), stack_frame);
 }
 
 /// Divide error

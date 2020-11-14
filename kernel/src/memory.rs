@@ -65,6 +65,7 @@ impl StackBounds {
     }
 }
 
+/// Allocates a stack for kernel threads
 pub fn alloc_stack(
     size_in_pages: u64,
     mapper: &mut impl Mapper<Size4KiB>,
@@ -97,6 +98,7 @@ pub fn alloc_stack(
     })
 }
 
+/// Allocates a stack for user threads
 pub fn alloc_user_stack(
     size_in_pages: u64,
     mapper: &mut impl Mapper<Size4KiB>,
@@ -126,6 +128,52 @@ pub fn alloc_user_stack(
     Ok(StackBounds {
         start: stack_start.start_address(),
         end: stack_end.start_address(),
+    })
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Memory mapping
+///////////////////////////////////////////////////////////////////////////////////////////////////
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MemoryBounds {
+    start: VirtAddr,
+    end: VirtAddr,
+}
+
+impl MemoryBounds {
+    pub fn start(&self) -> VirtAddr {
+        self.start
+    }
+
+    pub fn end(&self) -> VirtAddr {
+        self.end
+    }
+}
+
+/// Allocates user memory
+pub fn alloc_user_memory(
+    addr: u64,
+    size_in_pages: u64,
+    mapper: &mut impl Mapper<Size4KiB>,
+    frame_allocator: &mut impl FrameAllocator<Size4KiB>,
+) -> Result<MemoryBounds, mapper::MapToError<Size4KiB>> {
+    use core::sync::atomic::{AtomicU64, Ordering};
+    use x86_64::structures::paging::PageTableFlags as Flags;
+
+    let start_page = Page::from_start_address(VirtAddr::new(addr))
+        .expect("`USER_ADDR` not page aligned!");
+
+    let end_page = start_page + size_in_pages + 1;
+    let flags = Flags::PRESENT | Flags::WRITABLE | Flags::USER_ACCESSIBLE;
+    for page in Page::range(start_page, end_page) {
+        let frame = frame_allocator
+            .allocate_frame()
+            .ok_or(mapper::MapToError::FrameAllocationFailed)?;
+        unsafe { mapper.map_to(page, frame, flags, frame_allocator)?.flush(); }
+    }
+    Ok(MemoryBounds {
+        start: start_page.start_address(),
+        end: end_page.start_address(),
     })
 }
 
@@ -233,6 +281,7 @@ fn translate_addr_inner(addr: VirtAddr, physical_memory_offset: VirtAddr)
 // Utility functions
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// TODO: Ensure address alignment
+/// TODO: Replace all memory_read and memory_write calls with the generic versions
 
 pub unsafe fn memory_read_32(addr: u64) -> u32 {
     let phys_addr = PHYSICAL_MEMORY_OFFSET.load(Ordering::Relaxed) + addr;
@@ -252,6 +301,16 @@ pub unsafe fn memory_read_64(addr: u64) -> u64 {
 pub unsafe fn memory_write_64(addr: u64, value: u64) {
     let phys_addr = PHYSICAL_MEMORY_OFFSET.load(Ordering::Relaxed) + addr;
     core::ptr::write(phys_addr as *mut u64, value);
+}
+
+pub unsafe fn memory_write<T>(addr: u64, value: T) {
+    let phys_addr = PHYSICAL_MEMORY_OFFSET.load(Ordering::Relaxed) + addr;
+    core::ptr::write(phys_addr as *mut T, value);
+}
+
+pub unsafe fn memory_read<T>(addr: u64) -> T {
+    let phys_addr = PHYSICAL_MEMORY_OFFSET.load(Ordering::Relaxed) + addr;
+    core::ptr::read(phys_addr as *mut T)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

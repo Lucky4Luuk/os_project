@@ -36,17 +36,17 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use kernel::memory::BootInfoFrameAllocator;
     use kernel::vga_buffer::ModeEnum;
-    use vga::writers::{Text40x25, Graphics320x200x256, Graphics640x480x16, GraphicsWriter};
+    use vga::writers::{Text80x25, Graphics320x200x256, Graphics640x480x16, GraphicsWriter};
     use vga::colors::Color16;
     use x86_64::{structures::paging::MapperAllSizes, VirtAddr};
 
-    kernel::vga_buffer::set_mode(ModeEnum::Graphics640x480x16(
-        Graphics640x480x16::new()
-    ));
-
-    // kernel::vga_buffer::set_mode(ModeEnum::Text40x25(
-    //     Text40x25::new()
+    // kernel::vga_buffer::set_mode(ModeEnum::Graphics640x480x16(
+    //     Graphics640x480x16::new()
     // ));
+
+    kernel::vga_buffer::set_mode(ModeEnum::Text80x25(
+        Text80x25::new()
+    ));
 
     // match kernel::vga_buffer::WRITER.lock().mode {
     //     ModeEnum::Graphics640x480x16(m) => {
@@ -94,18 +94,18 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     kernel::init();
 
     let cpuid = CpuId::new();
-    match cpuid.get_vendor_info() {
-        Some(vf) => debug!("CPU vendor: {}", vf.as_string()),
-        None => warn!("Failed to find the CPU vendor!"),
-    }
-
-    match cpuid.get_feature_info() {
-        Some(features) => {
-            debug!("CPU has APIC: {}", features.has_apic());
-            debug!("CPU has TSC: {}", features.has_tsc());
-        },
-        None => warn!("Failed to find the CPU's feature info!"),
-    }
+    // match cpuid.get_vendor_info() {
+    //     Some(vf) => debug!("CPU vendor: {}", vf.as_string()),
+    //     None => warn!("Failed to find the CPU vendor!"),
+    // }
+    //
+    // match cpuid.get_feature_info() {
+    //     Some(features) => {
+    //         debug!("CPU has APIC: {}", features.has_apic());
+    //         debug!("CPU has TSC: {}", features.has_tsc());
+    //     },
+    //     None => warn!("Failed to find the CPU's feature info!"),
+    // }
 
     /*
     match cpuid.get_tsc_info() {
@@ -135,7 +135,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let hpet_info = acpi_controller.get_hpet_info();
     // trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
     kernel::hardware::hpet::HPET_BASE_ADDR.store(hpet_info.base_address as u64, Ordering::Relaxed);
-    kernel::hardware::hpet::initialize_hpet();
+    // kernel::hardware::hpet::initialize_hpet();
 
     // debug!("[RTC] Sleeping for 2 seconds");
     // debug!("RDTSC value: {}", kernel::hardware::rdtsc::read_rdtsc());
