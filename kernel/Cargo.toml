@@ -85,6 +85,7 @@ run-args = [
     # "-d", "cpu_reset",
     # "-D", "./log.txt",
     # "-no-reboot", "-no-shutdown",
+    "-monitor", "stdio",
 
     "-smp", "4",
 ]

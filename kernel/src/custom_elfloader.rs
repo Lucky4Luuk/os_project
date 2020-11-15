@@ -34,14 +34,14 @@ impl ElfLoader for CustomElfLoader {
         // info!("|-Start: {:#X}", start_addr);
         // info!("|-End: {:#X}", start_addr + alloc_len);
         let mapped_area = crate::memory::alloc_user_memory(
-            start_addr - (start_addr % 4096), //Page-align downwards
+            start_addr, //Page-align downwards
             alloc_len / 4096, //Get size in pages
             mapper.as_mut().unwrap(),
             frame_allocator.as_mut().unwrap(),
         ).expect("Failed to allocate pages for user memory!");
-        // info!("Mapped area:");
-        // info!("|-Start: {:#X}", mapped_area.start().as_u64());
-        // info!("|-End: {:#X}", mapped_area.end().as_u64() + 4096);
+        info!("Mapped area:");
+        info!("|-Start: {:#X}", mapped_area.start().as_u64());
+        info!("|-End: {:#X}", mapped_area.end().as_u64() + 4096);
         Ok(())
     }
 

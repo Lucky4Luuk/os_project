@@ -1,3 +1,5 @@
+use x86_64::VirtAddr;
+
 use crate::multitasking::{self, thread::Thread, with_scheduler};
 
 global_asm!(include_str!("userspace.s"));
@@ -29,9 +31,10 @@ pub fn init() {
 
     unsafe {
         asm!("mov rcx, {0}", in(reg) entry_point);
+        // x86_64::registers::model_specific::LStar::write(VirtAddr::new(entry_point));
+        unsafe { asm!("mov rsp, {0}", in(reg) stack_bounds.end().as_u64()); } //Jump to userspace stack
         asm!("pushfq");
         asm!("pop r11");
-        unsafe { asm!("mov rsp, {0}", in(reg) stack_bounds.end().as_u64()); } //Jump to userspace stack
         asm!("sysretq");
     }
 }

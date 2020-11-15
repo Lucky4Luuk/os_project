@@ -159,11 +159,12 @@ pub fn alloc_user_memory(
 ) -> Result<MemoryBounds, mapper::MapToError<Size4KiB>> {
     use core::sync::atomic::{AtomicU64, Ordering};
     use x86_64::structures::paging::PageTableFlags as Flags;
+    use crate::print;
 
-    let start_page = Page::from_start_address(VirtAddr::new(addr))
-        .expect("`USER_ADDR` not page aligned!");
+    let start_page = Page::containing_address(VirtAddr::new(addr));
+        //.expect("`USER_ADDR` not page aligned!");
 
-    let end_page = start_page + size_in_pages + 1;
+    let end_page = start_page + size_in_pages + 8;
     let flags = Flags::PRESENT | Flags::WRITABLE | Flags::USER_ACCESSIBLE;
     for page in Page::range(start_page, end_page) {
         let frame = frame_allocator

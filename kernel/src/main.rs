@@ -40,13 +40,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use vga::colors::Color16;
     use x86_64::{structures::paging::MapperAllSizes, VirtAddr};
 
-    // kernel::vga_buffer::set_mode(ModeEnum::Graphics640x480x16(
-    //     Graphics640x480x16::new()
-    // ));
-
-    kernel::vga_buffer::set_mode(ModeEnum::Text80x25(
-        Text80x25::new()
+    kernel::vga_buffer::set_mode(ModeEnum::Graphics640x480x16(
+        Graphics640x480x16::new()
     ));
+
+    // kernel::vga_buffer::set_mode(ModeEnum::Text80x25(
+    //     Text80x25::new()
+    // ));
 
     // match kernel::vga_buffer::WRITER.lock().mode {
     //     ModeEnum::Graphics640x480x16(m) => {

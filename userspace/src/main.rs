@@ -20,8 +20,10 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
+    loop {
+        unsafe { asm!("nop"); }
+    } //Do nothing for now
     // panic!("Hello, userspace!");
-    loop {} //Do nothing for now
 }
 
 //Useless rn

@@ -110,10 +110,10 @@ pub fn setup_usermode() {
         .unwrap();
     }
 
-    let syscall_entry = crate::userspace::init_userspace as u64;
-    x86_64::registers::model_specific::LStar::write(VirtAddr::new(syscall_entry));
+    let syscall_entry = syscall_entry as u64;
+    // x86_64::registers::model_specific::LStar::write(VirtAddr::new(syscall_entry));
 }
 
-// pub extern "C" fn syscall_entry() {
-//     info!("Syscall Entry!");
-// }
+pub extern "C" fn syscall_entry() {
+    info!("Syscall Entry!");
+}
