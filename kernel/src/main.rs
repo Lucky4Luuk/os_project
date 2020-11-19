@@ -135,7 +135,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let hpet_info = acpi_controller.get_hpet_info();
     // trace!("HPET_ADDR: {:#08X}", hpet_info.base_address);
     kernel::hardware::hpet::HPET_BASE_ADDR.store(hpet_info.base_address as u64, Ordering::Relaxed);
-    // kernel::hardware::hpet::initialize_hpet();
+    kernel::hardware::hpet::initialize_hpet();
 
     // debug!("[RTC] Sleeping for 2 seconds");
     // debug!("RDTSC value: {}", kernel::hardware::rdtsc::read_rdtsc());
@@ -147,13 +147,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // hlt_loop();
 
     //Kernel space threads
-    {
-        let mut mapper = kernel::memory::MAPPER.lock();
-        let mut frame_allocator = kernel::memory::FRAME_ALLOCATOR.lock();
-
-        let idle_thread = Thread::create(idle_thread, 2, mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).unwrap();
-        with_scheduler(|s| s.set_idle_thread(idle_thread));
-    }
+    // {
+    //     let mut mapper = kernel::memory::MAPPER.lock();
+    //     let mut frame_allocator = kernel::memory::FRAME_ALLOCATOR.lock();
+    //
+    //     let idle_thread = Thread::create(idle_thread, 2, mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).unwrap();
+    //     with_scheduler(|s| s.set_idle_thread(idle_thread));
+    // }
 
     //Userspace
     kernel::userspace::init();

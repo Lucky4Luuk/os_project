@@ -75,17 +75,14 @@ test-success-exit-code = 33         # (0x10 << 1) | 1
 test-timeout = 300                  # in seconds
 
 run-args = [
-    "-m", "256M",
-    # "-M", "q35",
-    # "+apic",
-    # "-machine", "kernel-irqchip=on",
-    "-cpu", "qemu64",
-    # "-cpu", "host",
-    # "-d", "int",
-    # "-d", "cpu_reset",
-    # "-D", "./log.txt",
-    # "-no-reboot", "-no-shutdown",
-    "-monitor", "stdio",
+    "-m", "256M",                       #256 megabytes of RAM
+    "-cpu", "qemu64",                   #Generic 64 bit CPU
+    # "-d", "int",                      #Log all hardware interrupts
+    # "-d", "cpu_reset",                #Log the cpu state when it resets
+    # "-D", "./log.txt",                #Specifies log location
+    # "-no-reboot", "-no-shutdown",     #Don't reboot upon crashing
+    # "-monitor", "stdio",              #QEMU monitor
+    # "-s", "-S",                       #For GDB
 
     "-smp", "4",
 ]

@@ -49,6 +49,7 @@ unsafe fn active_level_4_table(physical_memory_offset: VirtAddr)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Stack allocation
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StackBounds {
     start: VirtAddr,
@@ -134,6 +135,10 @@ pub fn alloc_user_stack(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory mapping
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+//TODO: Create `Stack` type that stores a stack and
+//      has a method to switch to said stack
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemoryBounds {
     start: VirtAddr,
@@ -164,8 +169,10 @@ pub fn alloc_user_memory(
     let start_page = Page::containing_address(VirtAddr::new(addr));
         //.expect("`USER_ADDR` not page aligned!");
 
-    let end_page = start_page + size_in_pages + 8;
-    let flags = Flags::PRESENT | Flags::WRITABLE | Flags::USER_ACCESSIBLE;
+    let end_page = start_page + size_in_pages;
+    let mut flags = Flags::PRESENT;
+    flags |= Flags::USER_ACCESSIBLE;
+    flags |= Flags::WRITABLE;
     for page in Page::range(start_page, end_page) {
         let frame = frame_allocator
             .allocate_frame()
@@ -181,6 +188,7 @@ pub fn alloc_user_memory(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //Page allocation
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /// A FrameAllocator that returns usable frames from the bootloader's memory map.
 pub struct BootInfoFrameAllocator {
     memory_map: &'static MemoryMap,
@@ -227,6 +235,7 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Address translation
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /// Translates the given virtual address to the mapped physical address, or
 /// `None` if the address is not mapped.
 ///
@@ -317,6 +326,7 @@ pub unsafe fn memory_read<T>(addr: u64) -> T {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Singleton mapper, frame allocator and physical memory offset
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 lazy_static! {
     pub static ref MAPPER: spin::Mutex<Option<OffsetPageTable<'static>>> = spin::Mutex::new(None);
 }

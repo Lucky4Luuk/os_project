@@ -12,6 +12,7 @@ impl log::Log for Logger {
     }
 
     fn log(&self, record: &Record) {
+        //TODO: Implement usage of record.target() so we can do info!(target: "test", "message");
         use vga::colors::Color16;
         // println!("[{}] {}", record.level(), record.args());
         let level_colour = match record.level() {

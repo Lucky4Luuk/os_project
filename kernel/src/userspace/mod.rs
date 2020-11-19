@@ -4,8 +4,22 @@ use crate::multitasking::{self, thread::Thread, with_scheduler};
 
 global_asm!(include_str!("userspace.s"));
 
+#[naked]
+unsafe extern "C" fn syscall_entry_fn() {
+    //TODO: Jump to kernel stack
+    //      Load old IP from RCX
+    //      Load syscall info from RDI
+
+    //Handle syscall
+
+    //TODO: Jump to task stack
+    //      Load old IP into RCX
+    //      Move back to RING 3
+}
+
 pub fn init() {
-    crate::gdt::setup_usermode();
+    crate::gdt::setup_usermode_gdt();
+    x86_64::registers::model_specific::LStar::write(VirtAddr::new(syscall_entry_fn as u64));
     trace!("Usermode gdt setup!");
 
     let userspace_addr = 0xFF00_0000;

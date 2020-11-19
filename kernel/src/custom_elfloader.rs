@@ -1,5 +1,7 @@
 use elfloader::*;
 
+use crate::memory::memory_write;
+
 pub struct CustomElfLoader {
     vbase: u64, //Base offset for all loaded ELF files using this loader
 }
@@ -14,42 +16,36 @@ impl CustomElfLoader {
 
 impl ElfLoader for CustomElfLoader {
     fn allocate(&mut self, load_headers: LoadableHeaders) -> Result<(), &'static str> {
-        let mut start_addr = 0;
-        let mut end_addr = 0;
         for header in load_headers {
             let addr = self.vbase + header.virtual_addr();
-            if start_addr > addr || start_addr == 0 { start_addr = addr; }
-            if end_addr < addr + header.mem_size() { end_addr = addr + header.mem_size(); }
             info!(
                 "allocate base = {:#X} size = {:#X} flags = {}",
                 addr,
                 header.mem_size(),
                 header.flags()
             );
+            let mut mapper = crate::memory::MAPPER.lock();
+            let mut frame_allocator = crate::memory::FRAME_ALLOCATOR.lock();
+            let mapped_area = crate::memory::alloc_user_memory(
+                addr, //No need to align it, done in function
+                header.mem_size() / 4096 + 1, //Get size in pages
+                mapper.as_mut().unwrap(),
+                frame_allocator.as_mut().unwrap(),
+            ).expect("Failed to allocate pages for user memory!");
+
+            //Zero the data
+            let size = header.mem_size() - header.mem_size() % 4096 + 4096; //Align up
+            for i in 0..size {
+                unsafe { memory_write(addr + i, 0u8); }
+            }
         }
-        let alloc_len = end_addr - start_addr;
-        let mut mapper = crate::memory::MAPPER.lock();
-        let mut frame_allocator = crate::memory::FRAME_ALLOCATOR.lock();
-        // info!("Mapping area:");
-        // info!("|-Start: {:#X}", start_addr);
-        // info!("|-End: {:#X}", start_addr + alloc_len);
-        let mapped_area = crate::memory::alloc_user_memory(
-            start_addr, //Page-align downwards
-            alloc_len / 4096, //Get size in pages
-            mapper.as_mut().unwrap(),
-            frame_allocator.as_mut().unwrap(),
-        ).expect("Failed to allocate pages for user memory!");
-        info!("Mapped area:");
-        info!("|-Start: {:#X}", mapped_area.start().as_u64());
-        info!("|-End: {:#X}", mapped_area.end().as_u64() + 4096);
+
         Ok(())
     }
 
     fn relocate(&mut self, entry: &Rela<P64>) -> Result<(), &'static str> {
         let typ = TypeRela64::from(entry.get_type());
-        let addr: *mut u64 = (self.vbase + entry.get_offset()) as *mut u64;
-
-        panic!("Relocating not supported yet!");
+        let addr = self.vbase + entry.get_offset();
 
         match typ {
             TypeRela64::R_RELATIVE => {
@@ -57,9 +53,12 @@ impl ElfLoader for CustomElfLoader {
                 // binary in the vspace) to the addend and we're done.
                 info!(
                     "R_RELATIVE *{:p} = {:#x}",
-                    addr,
+                    addr as *mut u64,
                     self.vbase + entry.get_addend()
                 );
+
+                unsafe { memory_write(addr, self.vbase + entry.get_addend()); }
+
                 Ok(())
             }
             _ => Err("Unexpected relocation encountered"),
@@ -75,7 +74,7 @@ impl ElfLoader for CustomElfLoader {
         unsafe {
             let mut offset = 0;
             for byte in region {
-                crate::memory::memory_write(start + offset, byte);
+                memory_write(start + offset, byte);
                 offset += 1;
             }
         }

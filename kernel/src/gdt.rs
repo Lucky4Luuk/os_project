@@ -99,7 +99,7 @@ pub fn init() {
     trace!("GDT loaded!");
 }
 
-pub fn setup_usermode() {
+pub fn setup_usermode_gdt() {
     unsafe {
         x86_64::registers::model_specific::Star::write(
             SELECTORS.user_code_selector,
@@ -109,9 +109,6 @@ pub fn setup_usermode() {
         )
         .unwrap();
     }
-
-    let syscall_entry = syscall_entry as u64;
-    // x86_64::registers::model_specific::LStar::write(VirtAddr::new(syscall_entry));
 }
 
 pub extern "C" fn syscall_entry() {
