@@ -52,7 +52,7 @@ impl ElfLoader for CustomElfLoader {
                 // This is a relative relocation, add the offset (where we put our
                 // binary in the vspace) to the addend and we're done.
                 info!(
-                    "R_RELATIVE *{:p} = {:#x}",
+                    "R_RELATIVE *{:p} = {:#X}",
                     addr as *mut u64,
                     self.vbase + entry.get_addend()
                 );
@@ -68,7 +68,7 @@ impl ElfLoader for CustomElfLoader {
     fn load(&mut self, flags: Flags, base: VAddr, region: &[u8]) -> Result<(), &'static str> {
         let start = self.vbase + base;
         let end = self.vbase + base + region.len() as u64;
-        info!("load region into = {:#x} -- {:#x}", start, end);
+        info!("load region into = {:#X} -- {:#X}", start, end);
 
         //Load region into new memory location
         unsafe {

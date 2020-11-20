@@ -44,9 +44,11 @@ pub fn init() {
     info!("hello?");
 
     unsafe {
+        asm!("cli"); //Disable interrupts
         asm!("mov rcx, {0}", in(reg) entry_point);
         // x86_64::registers::model_specific::LStar::write(VirtAddr::new(entry_point));
-        unsafe { asm!("mov rsp, {0}", in(reg) stack_bounds.end().as_u64()); } //Jump to userspace stack
+        // unsafe { asm!("mov rsp, {0}", in(reg) stack_bounds.end().as_u64()); } //Jump to userspace stack
+        stack_bounds.switch_to();
         asm!("pushfq");
         asm!("pop r11");
         asm!("sysretq");

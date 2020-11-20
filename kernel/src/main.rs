@@ -147,17 +147,20 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // hlt_loop();
 
     //Kernel space threads
-    // {
-    //     let mut mapper = kernel::memory::MAPPER.lock();
-    //     let mut frame_allocator = kernel::memory::FRAME_ALLOCATOR.lock();
-    //
-    //     let idle_thread = Thread::create(idle_thread, 2, mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).unwrap();
-    //     with_scheduler(|s| s.set_idle_thread(idle_thread));
-    // }
+    {
+        let mut mapper = kernel::memory::MAPPER.lock();
+        let mut frame_allocator = kernel::memory::FRAME_ALLOCATOR.lock();
+
+        let idle_thread = Thread::create(idle_thread, 2, mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).unwrap();
+        with_scheduler(|s| s.set_idle_thread(idle_thread));
+
+        let test_thread = Thread::create(test_thread, 2, mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).unwrap();
+        with_scheduler(|s| s.add_new_thread(test_thread));
+    }
 
     //Userspace
-    kernel::userspace::init();
-    // thread_entry();
+    // kernel::userspace::init();
+    thread_entry();
 
     hlt_loop();
 }
@@ -172,11 +175,11 @@ fn idle_thread() -> ! {
 fn test_thread() -> ! {
     loop {
         let thread_id = with_scheduler(|s| s.current_thread_id()).as_u64();
-        // if (thread_id % 2) > 0 {
-        //     print!("A");
-        // } else {
-        //     print!("B");
-        // }
+        if (thread_id % 2) > 0 {
+            print!("A");
+        } else {
+            print!("B");
+        }
         multitasking::yield_now(); //Manually yield for performance
         // x86_64::instructions::hlt(); //Alternatively, run hlt so interrupts still work
     }

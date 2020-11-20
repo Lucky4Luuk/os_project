@@ -64,6 +64,16 @@ impl StackBounds {
     pub fn end(&self) -> VirtAddr {
         self.end
     }
+
+    /// Switches to the stack described by the StackBounds.
+    /// Unsafe because this can easily lead to memory unsafety and UB.
+    /// Do not access local variables after calling this!
+    pub unsafe fn switch_to(&self) {
+        asm!("
+            mov rsp, {0}
+            mov rbp, {0}",
+        in(reg) self.end.as_u64());
+    }
 }
 
 /// Allocates a stack for kernel threads
@@ -136,9 +146,6 @@ pub fn alloc_user_stack(
 // Memory mapping
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-//TODO: Create `Stack` type that stores a stack and
-//      has a method to switch to said stack
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemoryBounds {
     start: VirtAddr,
@@ -181,7 +188,7 @@ pub fn alloc_user_memory(
     }
     Ok(MemoryBounds {
         start: start_page.start_address(),
-        end: end_page.start_address(),
+        end: end_page.start_address() + end_page.size(),
     })
 }
 
