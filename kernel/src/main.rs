@@ -158,6 +158,28 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         with_scheduler(|s| s.add_new_thread(test_thread));
     }
 
+    // Testing loading code at runtime. Pagefaults right now lol
+    /*{
+        let userspace_addr = 0xFF00_0000;
+
+        let test_elf = include_bytes!("../../target/x86_64-os_project/release/userspace");
+        let binary = elfloader::ElfBinary::new("test", test_elf).expect("Failed to load ELF file!");
+        let mut loader = kernel::custom_elfloader::CustomElfLoader::new(userspace_addr);
+        binary.load(&mut loader).expect("Can't load the binary!");
+
+        let entry_point = userspace_addr + binary.entry_point();
+        info!("Entry point: {:#X}", entry_point);
+        let entry_point_fn = unsafe {
+            core::mem::transmute::<u64, fn() -> !>(entry_point)
+        };
+
+        let mut mapper = kernel::memory::MAPPER.lock();
+        let mut frame_allocator = kernel::memory::FRAME_ALLOCATOR.lock();
+
+        let user_thread = Thread::create(entry_point_fn, 2, mapper.as_mut().unwrap(), frame_allocator.as_mut().unwrap()).unwrap();
+        with_scheduler(|s| s.add_new_thread(user_thread));
+    }*/
+
     //Userspace
     // kernel::userspace::init();
     thread_entry();

@@ -12,6 +12,13 @@ use vga::writers::{
     Graphics320x200x256, Graphics320x240x256, Graphics640x480x16,
 };
 
+use tui::{
+    backend::Backend,
+    buffer::Cell,
+    style::Color,
+    layout::Rect,
+};
+
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         mode: ModeEnum::NoMode,
@@ -161,6 +168,21 @@ impl Writer {
             ModeEnum::Text80x25(m) => if enabled { m.enable_cursor(); } else { m.disable_cursor(); },
 
             _ => {},
+        }
+    }
+
+    pub fn get_size(&self) -> (usize, usize) {
+        match self.mode {
+            ModeEnum::Text40x25(_) => (40, 25),
+            ModeEnum::Text40x50(_) => (40, 50),
+            ModeEnum::Text80x25(_) => (80, 25),
+
+            //Probably should check how big characters are (default: 8x8 font)
+            ModeEnum::Graphics320x200x256(_) => (320, 200),
+            ModeEnum::Graphics320x240x256(_) => (320, 240),
+            ModeEnum::Graphics640x480x16(_) => (640, 480),
+
+            _ => (0, 0), //No mode set or mode not supported yet
         }
     }
 
@@ -315,6 +337,53 @@ impl Writer {
 
             _ => {}, //Can't do anything without a mode
         }
+    }
+}
+
+impl Backend for Writer {
+    fn draw<'a, I>(&mut self, content: I) -> Result<(), tui::io::Error>
+    where
+        I: Iterator<Item = (u16, u16, &'a Cell)>
+    {
+        unimplemented!();
+    }
+
+    fn hide_cursor(&mut self) -> Result<(), tui::io::Error> {
+        self.set_cursor_enabled(false);
+        Ok(())
+    }
+
+    fn show_cursor(&mut self) -> Result<(), tui::io::Error> {
+        self.set_cursor_enabled(true);
+        Ok(())
+    }
+
+    fn get_cursor(&mut self) -> Result<(u16, u16), tui::io::Error> {
+        Ok((self.cursor_pos.0 as u16, self.cursor_pos.1 as u16)) // Shit code but it works lol
+    }
+
+    fn set_cursor(&mut self, x: u16, y: u16) -> Result<(), tui::io::Error> {
+        self.cursor_pos = (x as usize, y as usize);
+        Ok(())
+    }
+
+    fn clear(&mut self) -> Result<(), tui::io::Error> {
+        self.clear_screen();
+        Ok(())
+    }
+
+    fn size(&self) -> Result<Rect, tui::io::Error> {
+        let size = self.get_size();
+        Ok(Rect {
+            x: 0,
+            y: 0,
+            width: size.0 as u16, //These 2 are originally usize, but for now, everything fits in a u16 so it's fine
+            height: size.1 as u16,
+        })
+    }
+
+    fn flush(&mut self) -> Result<(), tui::io::Error> {
+        unimplemented!();
     }
 }
 
